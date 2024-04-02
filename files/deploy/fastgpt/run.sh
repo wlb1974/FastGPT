@@ -1,4 +1,5 @@
 #!/bin/bash
+docker login -u fastgpt-hunyuan-1710312601433 -p ef715fc44e8e5d7598a9fb451fdb876786ec9bc0 g-iisr0563-docker.pkg.coding.net
 docker-compose pull
 docker-compose up -d
 

@@ -3,10 +3,10 @@
 version: '3.3'
 services:
   pg:
-    image: ankane/pgvector:v0.5.0 # git
-    # image: registry.cn-hangzhou.aliyuncs.com/fastgpt/pgvector:v0.5.0 # 阿里云
+    # image: ankane/pgvector:v0.5.0 # git
+    image: registry.cn-hangzhou.aliyuncs.com/fastgpt/pgvector:v0.5.0 # 阿里云
     container_name: pg
-    restart: always
+    # restart: always
     ports: # 生产环境建议不要暴露
       - 5432:5432
     networks:
@@ -21,7 +21,7 @@ services:
   mongo:
     image: registry.cn-hangzhou.aliyuncs.com/fastgpt/mongo:5.0.18
     container_name: mongo
-    restart: always
+    # restart: always
     ports:
       - 27017:27017
     networks:
@@ -42,8 +42,8 @@ services:
         exec docker-entrypoint.sh $$@
   fastgpt:
     container_name: fastgpt
-    image: ghcr.io/labring/fastgpt:latest # git
-    # image: registry.cn-hangzhou.aliyuncs.com/fastgpt/fastgpt:latest # 阿里云
+    # image: ghcr.io/labring/fastgpt:latest # git
+    image: registry.cn-hangzhou.aliyuncs.com/fastgpt/fastgpt:latest # 阿里云
     ports:
       - 3000:3000
     networks:
@@ -51,12 +51,12 @@ services:
     depends_on:
       - mongo
       - pg
-    restart: always
+    # restart: always
     environment:
       # root 密码，用户名为: root
       - DEFAULT_ROOT_PSW=1234
       # 中转地址，如果是用官方号，不需要管。务必加 /v1
-      - OPENAI_BASE_URL=https://api.openai.com/v1
+      - OPENAI_BASE_URL=http://hunyuanapi:6006/v1
       - CHAT_API_KEY=sk-xxxx
       - DB_MAX_LINK=5 # database max link
       - TOKEN_KEY=any
@@ -68,5 +68,36 @@ services:
       - PG_URL=postgresql://username:password@pg:5432/postgres
     volumes:
       - ./config.json:/app/data/config.json
+
+  hunyuanapi:
+    container_name: hunyuanapi
+    image: g-iisr0563-docker.pkg.coding.net/fastgpt_hunyuanapi/fastgpt-hunyuan/fastgpt-hunyuan:master
+    ports:
+      - 6006:6006
+    networks:
+      - fastgpt
+    entrypoint: python /app/openai_api.py &&
+    environment:
+      - TZ=Asia/Shanghai
+      - OPENAI_TOKEN=*
+      - MOONSHOT_TOKEN=*
+      - MYPROXY=*
+      - HUNYUAN_APP_ID=*
+      - HUNYUAN_SECRET_ID=*
+      - HUNYUAN_SECRET_KEY=*
+    restart: always
+  myproxy:
+    container_name: myproxy
+    image: kroniak/ssh-client
+    environment:
+      - SSH_HOST=103.143.248.158
+      - SSH_PORT=22
+      - SSH_USER=root
+      - SSH_KEY_FILE=/app/.ssh/id_rsa
+    networks:
+      - fastgpt
+    volumes:
+      - ./.ssh:/root/.ssh:ro
+    entrypoint: ssh -N -L 0.0.0.0:5890:localhost:5890 -p 22 root@103.143.248.158 &&
 networks:
   fastgpt:

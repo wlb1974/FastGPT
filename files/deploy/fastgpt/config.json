@@ -1,0 +1,173 @@
+{
+  "systemEnv": {
+    "openapiPrefix": "fastgpt",
+    "vectorMaxProcess": 15,
+    "qaMaxProcess": 15,
+    "pgHNSWEfSearch": 100
+  },
+  "llmModels": [
+      {
+      "model": "ChatStd",
+      "name": "混元大模型标准版",
+      "maxContext": 16000,
+      "maxResponse": 4000,
+      "quoteMaxToken": 13000,
+      "maxTemperature": 1.0,
+      "charsPointsPrice": 0,
+      "censor": false,
+      "vision": false,
+      "datasetProcess": false,
+      "toolChoice": true,
+      "functionCall": false,
+      "customCQPrompt": "",
+      "customExtractPrompt": "",
+      "defaultSystemChatPrompt": "",
+      "defaultConfig": {}
+    },
+    {
+      "model": "ChatPro",
+      "name": "混元大模型高级版",
+      "maxContext": 16000,
+      "maxResponse": 4000,
+      "quoteMaxToken": 13000,
+      "maxTemperature": 1.0,
+      "charsPointsPrice": 0,
+      "censor": false,
+      "vision": false,
+      "datasetProcess": false,
+      "toolChoice": true,
+      "functionCall": false,
+      "customCQPrompt": "",
+      "customExtractPrompt": "",
+      "defaultSystemChatPrompt": "",
+      "defaultConfig": {}
+    },
+    {
+      "model": "gpt-3.5-turbo",
+      "name": "云之大模型标准版",
+      "maxContext": 16000,
+      "maxResponse": 16000,
+      "quoteMaxToken": 13000,
+      "maxTemperature": 1.0,
+      "charsPointsPrice": 0,
+      "censor": false,
+      "vision": false,
+      "datasetProcess": true,
+      "toolChoice": true,
+      "functionCall": false,
+      "customCQPrompt": "",
+      "customExtractPrompt": "",
+      "defaultSystemChatPrompt": "",
+      "defaultConfig": {}
+    },
+    {
+      "model": "gpt-4-turbo-preview",
+      "name": "云之大模型高级版",
+      "maxContext": 16000,
+      "maxResponse": 16000,
+      "quoteMaxToken": 13000,
+      "maxTemperature": 1.0,
+      "charsPointsPrice": 0,
+      "censor": false,
+      "vision": false,
+      "datasetProcess": true,
+      "toolChoice": true,
+      "functionCall": false,
+      "customCQPrompt": "",
+      "customExtractPrompt": "",
+      "defaultSystemChatPrompt": "",
+      "defaultConfig": {}
+    },
+    {
+      "model": "moonshot-v1-32k",
+      "name": "月之暗面V1-32K",
+      "maxContext": 125000,
+      "maxResponse": 4000,
+      "quoteMaxToken": 100000,
+      "maxTemperature": 1.0,
+      "charsPointsPrice": 0,
+      "censor": false,
+      "vision": false,
+      "datasetProcess": false,
+      "toolChoice": true,
+      "functionCall": false,
+      "customCQPrompt": "",
+      "customExtractPrompt": "",
+      "defaultSystemChatPrompt": "",
+      "defaultConfig": {}
+    },
+    {
+      "model": "moonshot-v1-128k",
+      "name": "月之暗面V1-128K",
+      "maxContext": 128000,
+      "maxResponse": 4000,
+      "quoteMaxToken": 100000,
+      "maxTemperature": 1.0,
+      "charsPointsPrice": 0,
+      "censor": false,
+      "vision": false,
+      "datasetProcess": false,
+      "toolChoice": true,
+      "functionCall": false,
+      "customCQPrompt": "",
+      "customExtractPrompt": "",
+      "defaultSystemChatPrompt": "",
+      "defaultConfig": {}
+    }
+  ],
+  "vectorModels": [
+    {
+      "model": "text-embedding-ada-002",
+      "name": "Embedding-2",
+      "charsPointsPrice": 0,
+      "defaultToken": 700,
+      "maxToken": 3000,
+      "weight": 100
+    }
+  ],
+  "reRankModels": [],
+  "audioSpeechModels": [
+    {
+      "model": "tts-1",
+      "name": "OpenAI TTS1",
+      "charsPointsPrice": 0,
+      "voices": [
+        {
+          "label": "Alloy",
+          "value": "alloy",
+          "bufferId": "openai-Alloy"
+        },
+        {
+          "label": "Echo",
+          "value": "echo",
+          "bufferId": "openai-Echo"
+        },
+        {
+          "label": "Fable",
+          "value": "fable",
+          "bufferId": "openai-Fable"
+        },
+        {
+          "label": "Onyx",
+          "value": "onyx",
+          "bufferId": "openai-Onyx"
+        },
+        {
+          "label": "Nova",
+          "value": "nova",
+          "bufferId": "openai-Nova"
+        },
+        {
+          "label": "Shimmer",
+          "value": "shimmer",
+          "bufferId": "openai-Shimmer"
+        }
+      ]
+    }
+  ],
+  "whisperModel": {
+    "model": "whisper-1",
+    "name": "Whisper1",
+    "charsPointsPrice": 0
+  }
+}

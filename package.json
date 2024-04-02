@@ -19,7 +19,7 @@
     "next-i18next": "15.2.0",
     "prettier": "3.2.4",
     "react-i18next": "13.5.0",
-    "zhlint": "^0.7.1"
+    "zhlint": "^0.8.1"
   },
   "lint-staged": {
     "./**/**/*.{ts,tsx,scss}": "npm run format-code",
