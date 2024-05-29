@@ -374,6 +374,8 @@ const ChatInput = ({
             boxShadow={'none !important'}
             color={'myGray.900'}
             isDisabled={isSpeaking}
+            borderRadius={"1g"}
+            paddingX={"5%"}
             value={inputValue}
             onChange={(e) => {
               const textarea = e.target;
