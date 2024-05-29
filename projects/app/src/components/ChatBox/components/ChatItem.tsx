@@ -213,7 +213,7 @@ ${toolResponse}`}
       <Flex w={'100%'} alignItems={'center'} gap={2} justifyContent={styleMap.justifyContent}>
         {isChatting && type === ChatRoleEnum.AI && isLastChild ? null : (
           <Box order={styleMap.order} ml={styleMap.ml}>
-            <ChatController {...chatControllerProps} isLastChild={isLastChild} />
+            {/* <ChatController {...chatControllerProps} isLastChild={isLastChild} /> */}
           </Box>
         )}
         <ChatAvatar src={avatar} type={type} />
