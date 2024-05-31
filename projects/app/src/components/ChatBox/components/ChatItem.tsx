@@ -66,7 +66,7 @@ const ChatItem = ({
     type === ChatRoleEnum.Human
       ? {
           order: 0,
-          borderRadius: '16px 0 16px 16px',
+          borderRadius: 'xl',
           justifyContent: 'flex-end',
           textAlign: 'right',
           // bg: 'primary.100'
@@ -74,7 +74,7 @@ const ChatItem = ({
         }
       : {
           order: 1,
-          borderRadius: '0 16px 16px 16px',
+          borderRadius: 'xl',
           justifyContent: 'flex-start',
           textAlign: 'left',
           bg: '#FFFFFF'
