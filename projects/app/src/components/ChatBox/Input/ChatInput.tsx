@@ -367,7 +367,7 @@ const ChatInput = ({
                   borderTop: '1px solid',
                   borderTopColor: 'rgba(0,0,0,0.15)'
                 })}
-            borderRadius={['lg', '1g']}
+            borderRadius={['xl', 'xl']}
             bg={'linear-gradient( 107deg, rgba(56,143,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'}
             _focusVisible={{
                   // border: 'none' ,
