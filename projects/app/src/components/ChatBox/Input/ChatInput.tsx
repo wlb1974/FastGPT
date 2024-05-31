@@ -217,7 +217,7 @@ const ChatInput = ({
   }, [finishWhisperTranscription, isSpeaking, startSpeak, stopSpeak]);
 
   return (
-    <Box m={['0 auto 10px', '10px auto 10px']} w={'90%'} maxW={['auto', 'min(800px, 90%)']} px={[0, 5] } 
+    <Box m={['0 auto 17px', '10px auto 17px']} w={'90%'} maxW={['auto', 'min(800px, 90%)']} px={[0, 5] } 
     >
       <Box
         pt={fileList.length > 0 ? '10px' : ['14px', '18px']}
@@ -225,7 +225,7 @@ const ChatInput = ({
         position={'relative'}
         boxShadow={isSpeaking ? `0 0 10px rgba(54,111,255,0.4)` : `0 0 10px rgba(0,0,0,0.2)`}
         borderRadius={['full', 'full']}
-        bg={'white'}
+        bg={'linear-gradient( 107deg, #388FF0 0%, #5796FE 100%);'}
         overflow={'display'}
         {...(isPc
           ? {
@@ -365,9 +365,9 @@ const ChatInput = ({
             placeholder={isSpeaking ? t('core.chat.Speaking') : t('core.chat.Type a message')}
             resize={'none'}
             rows={1}
-            height={'22px'}
-            lineHeight={'22px'}
-            maxHeight={'50vh'}
+            height={'30px'}
+            lineHeight={'30px'}
+            maxHeight={'60vh'}
             maxLength={-1}
             overflowY={'auto'}
             whiteSpace={'pre-wrap'}
