@@ -455,8 +455,8 @@ const ChatInput = ({
                       alignItems={'center'}
                       justifyContent={'center'}
                       flexShrink={0}
-                      h={['30px', '32px']}
-                      w={['40px', '40px']}
+                      h={['26px', '32px']}
+                      w={['26px', '32px']}
                       borderRadius={'md'}
                       cursor={'pointer'}
                       _hover={{ bg: '#F5F5F8' }}
@@ -464,8 +464,8 @@ const ChatInput = ({
                     >
                       <MyIcon
                         name={'core/chat/cancelSpeak'}
-                        width={['40px', '40px']}
-                        height={['30px', '30px']}
+                        width={['20px', '22px']}
+                        height={['20px', '22px']}
                       />
                     </Flex>
                   </MyTooltip>
@@ -476,8 +476,8 @@ const ChatInput = ({
                     alignItems={'center'}
                     justifyContent={'center'}
                     flexShrink={0}
-                    h={['30px', '32px']}
-                    w={['40px', '40px']}
+                    h={['26px', '32px']}
+                    w={['26px', '32px']}
                     borderRadius={'md'}
                     cursor={'pointer'}
                     _hover={{ bg: '#F5F5F8' }}
@@ -485,8 +485,8 @@ const ChatInput = ({
                   >
                     <MyIcon
                       name={isSpeaking ? 'core/chat/finishSpeak' : 'core/chat/recordFill'}
-                      width={['36px', '36px']}
-                      height={['30px', '30px']}
+                      width={['20px', '22px']}
+                      height={['20px', '22px']}
                       color={isSpeaking ? 'primary.500' : 'myGray.600'}
                     />
                   </Flex>
@@ -503,8 +503,8 @@ const ChatInput = ({
                 alignItems={'center'}
                 justifyContent={'center'}
                 flexShrink={0}
-                width={['36px', '36px']}
-                height={['30px', '30px']}
+                h={['28px', '32px']}
+                w={['28px', '32px']}
                 borderRadius={'md'}
                 bg={
                   isSpeaking || isChatting
@@ -525,8 +525,8 @@ const ChatInput = ({
                 {isChatting ? (
                   <MyIcon
                     animation={'zoomStopIcon 0.4s infinite alternate'}
-                    width={['36px', '36px']}
-                    height={['30px', '30px']}
+                    width={['22px', '25px']}
+                    height={['22px', '25px']}
                     cursor={'pointer'}
                     name={'stop'}
                     color={'gray.500'}
@@ -535,8 +535,8 @@ const ChatInput = ({
                   <MyTooltip label={t('core.chat.Send Message')}>
                     <MyIcon
                       name={'core/chat/sendFill'}
-                      width={['36px', '36px']}
-                      height={['30px', '30px']}
+                      width={['22px', '25px']}
+                      height={['22px', '25px']}
                       color={'white'}
                     />
                   </MyTooltip>
