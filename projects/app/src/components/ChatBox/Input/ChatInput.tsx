@@ -217,7 +217,7 @@ const ChatInput = ({
   }, [finishWhisperTranscription, isSpeaking, startSpeak, stopSpeak]);
 
   return (
-    <Box m={['0 auto 17px', '10px auto 17px']} w={'90%'} maxW={['auto', 'min(800px, 90%)']} px={[0, 5] } 
+    <Box m={['0 auto ', '10px auto ']} w={'100%'} maxW={['auto', 'min(800px, 100%)']} px={[0, 5] } 
     >
       <Box
         pt={fileList.length > 0 ? '10px' : ['14px', '18px']}
@@ -357,7 +357,6 @@ const ChatInput = ({
             ref={TextareaDom}
             py={0}
             pl={2}
-            pr={['48px', '48px']}
             mr={['48px', '60px']}
             {...(isPc
               ? {
@@ -368,12 +367,11 @@ const ChatInput = ({
                   borderTop: '1px solid',
                   borderTopColor: 'rgba(0,0,0,0.15)'
                 })}
-        borderRadius={['lg', '1g']}
+            borderRadius={['lg', '1g']}
             bg={'linear-gradient( 107deg, rgba(56,143,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'}
             _focusVisible={{
                   // border: 'none' ,
-                  background: 'none',
-                  opacity: 1
+                  background : 'linear-gradient( 107deg, rgba(56,143,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'
                 }}
             placeholder={isSpeaking ? t('core.chat.Speaking') : t('core.chat.Type a message')}
             resize={'none'}
