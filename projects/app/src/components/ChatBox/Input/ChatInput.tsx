@@ -217,14 +217,14 @@ const ChatInput = ({
   }, [finishWhisperTranscription, isSpeaking, startSpeak, stopSpeak]);
 
   return (
-    <Box m={['0 auto', '10px auto']} w={'90%'} maxW={['auto', 'min(800px, 90%)']} px={[0, 5] } borderRadius={'1g'}
+    <Box m={['0 auto 10px', '10px auto 10px']} w={'90%'} maxW={['auto', 'min(800px, 90%)']} px={[0, 5] } 
     >
       <Box
         pt={fileList.length > 0 ? '10px' : ['14px', '18px']}
         pb={['14px', '18px']}
         position={'relative'}
         boxShadow={isSpeaking ? `0 0 10px rgba(54,111,255,0.4)` : `0 0 10px rgba(0,0,0,0.2)`}
-        borderRadius={['none', 'md']}
+        borderRadius={['full', 'full']}
         bg={'white'}
         overflow={'display'}
         {...(isPc
