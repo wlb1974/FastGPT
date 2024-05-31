@@ -217,7 +217,8 @@ const ChatInput = ({
   }, [finishWhisperTranscription, isSpeaking, startSpeak, stopSpeak]);
 
   return (
-    <Box m={['0 auto', '10px auto']} w={'100%'} maxW={['auto', 'min(800px, 100%)']} px={[0, 5]}>
+    <Box m={['0 auto', '10px auto']} w={'90%'} maxW={['auto', 'min(800px, 90%)']} px={[0, 5] } borderRadius={'1g'}
+    >
       <Box
         pt={fileList.length > 0 ? '10px' : ['14px', '18px']}
         pb={['14px', '18px']}
@@ -374,8 +375,6 @@ const ChatInput = ({
             boxShadow={'none !important'}
             color={'myGray.900'}
             isDisabled={isSpeaking}
-            borderRadius={"1g"}
-            paddingX={"5%"}
             value={inputValue}
             onChange={(e) => {
               const textarea = e.target;
