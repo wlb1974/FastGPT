@@ -223,19 +223,19 @@ const ChatInput = ({
         pt={fileList.length > 0 ? '10px' : ['14px', '18px']}
         pb={['14px', '18px']}
         position={'relative'}
-        boxShadow={isSpeaking ? `0 0 10px rgba(54,111,255,0.4)` : `0 0 10px rgba(0,0,0,0.2)`}
-        borderRadius={['lg', '1g']}
-        bg={'linear-gradient( 107deg, rgba(56,143,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'}
+        // boxShadow={isSpeaking ? `0 0 10px rgba(54,111,255,0.4)` : `0 0 10px rgba(0,0,0,0.2)`}
+        // borderRadius={['lg', '1g']}
+        // bg={'linear-gradient( 107deg, rgba(56,143,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'}
         overflow={'display'}
-        {...(isPc
-          ? {
-              border: '1px solid',
-              borderColor: 'rgba(0,0,0,0.12)'
-            }
-          : {
-              borderTop: '1px solid',
-              borderTopColor: 'rgba(0,0,0,0.15)'
-            })}
+        // {...(isPc
+        //   ? {
+        //       border: '1px solid',
+        //       borderColor: 'rgba(0,0,0,0.12)'
+        //     }
+        //   : {
+        //       borderTop: '1px solid',
+        //       borderTopColor: 'rgba(0,0,0,0.15)'
+        //     })}
       >
         {/* Chat input guide box */}
         {chatInputGuide.open && (
@@ -358,11 +358,20 @@ const ChatInput = ({
             py={0}
             pl={2}
             pr={['48px', '48px']}
-            border={'none'}
+            {...(isPc
+              ? {
+                  border: '1px solid',
+                  borderColor: 'rgba(0,0,0,0.12)'
+                }
+              : {
+                  borderTop: '1px solid',
+                  borderTopColor: 'rgba(0,0,0,0.15)'
+                })}
+        borderRadius={['lg', '1g']}
+            bg={'linear-gradient( 107deg, rgba(56,143,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'}
             _focusVisible={{
-              border: 'none' ,
-              background : 'none'
-            }}
+                  // border: 'none' ,
+                }}
             placeholder={isSpeaking ? t('core.chat.Speaking') : t('core.chat.Type a message')}
             resize={'none'}
             rows={1}
