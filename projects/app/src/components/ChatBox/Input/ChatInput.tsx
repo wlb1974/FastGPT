@@ -225,7 +225,7 @@ const ChatInput = ({
         position={'relative'}
         boxShadow={isSpeaking ? `0 0 10px rgba(54,111,255,0.4)` : `0 0 10px rgba(0,0,0,0.2)`}
         borderRadius={['full', 'full']}
-        bg={'linear-gradient( 107deg, #388FF0 0%, #5796FE 100%);'}
+        bg={'linear-gradient( 107deg, rgba(56,13,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'}
         overflow={'display'}
         {...(isPc
           ? {
@@ -357,10 +357,11 @@ const ChatInput = ({
             ref={TextareaDom}
             py={0}
             pl={2}
-            pr={['30px', '48px']}
+            pr={['48px', '48px']}
             border={'none'}
             _focusVisible={{
-              border: 'none'
+              border: 'none' ,
+              background : 'none'
             }}
             placeholder={isSpeaking ? t('core.chat.Speaking') : t('core.chat.Type a message')}
             resize={'none'}
@@ -423,7 +424,7 @@ const ChatInput = ({
             alignItems={'center'}
             position={'absolute'}
             right={[2, 4]}
-            bottom={['10px', '12px']}
+            bottom={['15px', '16px']}
           >
             {/* voice-input */}
             {whisperConfig.open && !havInput && !isChatting && !!whisperModel && (
