@@ -224,8 +224,8 @@ const ChatInput = ({
         pb={['14px', '18px']}
         position={'relative'}
         boxShadow={isSpeaking ? `0 0 10px rgba(54,111,255,0.4)` : `0 0 10px rgba(0,0,0,0.2)`}
-        borderRadius={['full', 'full']}
-        bg={'linear-gradient( 107deg, rgba(56,13,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'}
+        borderRadius={['lg', '1g']}
+        bg={'linear-gradient( 107deg, rgba(56,143,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'}
         overflow={'display'}
         {...(isPc
           ? {
@@ -515,8 +515,8 @@ const ChatInput = ({
                 {isChatting ? (
                   <MyIcon
                     animation={'zoomStopIcon 0.4s infinite alternate'}
-                    width={['22px', '25px']}
-                    height={['22px', '25px']}
+                    width={['25px', '28px']}
+                    height={['25px', '28px']}
                     cursor={'pointer'}
                     name={'stop'}
                     color={'gray.500'}
@@ -525,8 +525,8 @@ const ChatInput = ({
                   <MyTooltip label={t('core.chat.Send Message')}>
                     <MyIcon
                       name={'core/chat/sendFill'}
-                      width={['18px', '20px']}
-                      height={['18px', '20px']}
+                      width={['22px', '25px']}
+                      height={['22px', '25px']}
                       color={'white'}
                     />
                   </MyTooltip>
