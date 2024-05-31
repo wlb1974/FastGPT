@@ -392,7 +392,7 @@ const ChatInput = ({
             onChange={(e) => {
               const textarea = e.target;
               textarea.style.height = textareaMinH;
-              textarea.style.height = `${textarea.scrollHeight + 10}px`;
+              textarea.style.height = `${textarea.scrollHeight}px`;
               setValue('input', textarea.value);
             }}
             onKeyDown={(e) => {
