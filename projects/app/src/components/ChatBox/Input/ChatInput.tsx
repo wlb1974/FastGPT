@@ -371,7 +371,7 @@ const ChatInput = ({
             bg={'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'}
             _focusVisible={{
                   // border: 'none' ,
-                  background : 'linear-gradient( 107deg, rgba(56,143,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'
+                  background : 'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'
                 }}
             placeholder={isSpeaking ? t('core.chat.Speaking') : t('core.chat.Type a message')}
             resize={'none'}
