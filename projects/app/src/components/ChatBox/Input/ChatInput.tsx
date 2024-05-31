@@ -358,7 +358,7 @@ const ChatInput = ({
             py={0}
             pl={2}
             pr={['48px', '48px']}
-            mr={['60px', '60px']}
+            mr={['48px', '60px']}
             {...(isPc
               ? {
                   border: '1px solid',
@@ -372,7 +372,8 @@ const ChatInput = ({
             bg={'linear-gradient( 107deg, rgba(56,143,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'}
             _focusVisible={{
                   // border: 'none' ,
-                  background: 'none'
+                  background: 'none',
+                  opacity: 1
                 }}
             placeholder={isSpeaking ? t('core.chat.Speaking') : t('core.chat.Type a message')}
             resize={'none'}
