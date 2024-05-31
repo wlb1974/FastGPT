@@ -385,6 +385,8 @@ const ChatInput = ({
             wordBreak={'break-all'}
             boxShadow={'none !important'}
             color={'myGray.900'}
+            display="flex"
+            alignItems="center"
             isDisabled={isSpeaking}
             value={inputValue}
             onChange={(e) => {

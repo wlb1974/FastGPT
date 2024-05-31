@@ -66,17 +66,18 @@ const ChatItem = ({
     type === ChatRoleEnum.Human
       ? {
           order: 0,
-          borderRadius: '8px 0 8px 8px',
+          borderRadius: '16px 0 16px 16px',
           justifyContent: 'flex-end',
           textAlign: 'right',
-          bg: 'primary.100'
+          // bg: 'primary.100'
+          bg: 'linear-gradient( 107deg, #388FF0 0%, #5796FE 100%), #FFFFFF;'
         }
       : {
           order: 1,
-          borderRadius: '0 8px 8px 8px',
+          borderRadius: '0 16px 16px 16px',
           justifyContent: 'flex-start',
           textAlign: 'left',
-          bg: 'myGray.50'
+          bg: '#FFFFFF'
         };
 
   const isChatting = useContextSelector(ChatBoxContext, (v) => v.isChatting);
@@ -89,7 +90,8 @@ const ChatItem = ({
       return (
         <>
           {files.length > 0 && <FilesBlock files={files} />}
-          <Markdown source={text} />
+          <Markdown source={text} 
+          />
         </>
       );
     }
