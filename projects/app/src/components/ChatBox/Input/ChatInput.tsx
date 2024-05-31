@@ -358,6 +358,7 @@ const ChatInput = ({
             py={0}
             pl={2}
             pr={['48px', '48px']}
+            mr={['60px', '60px']}
             {...(isPc
               ? {
                   border: '1px solid',
@@ -371,11 +372,12 @@ const ChatInput = ({
             bg={'linear-gradient( 107deg, rgba(56,143,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'}
             _focusVisible={{
                   // border: 'none' ,
+                  background: 'none'
                 }}
             placeholder={isSpeaking ? t('core.chat.Speaking') : t('core.chat.Type a message')}
             resize={'none'}
             rows={1}
-            height={'30px'}
+            height={'40px'}
             lineHeight={'30px'}
             maxHeight={'60vh'}
             maxLength={-1}
@@ -389,7 +391,7 @@ const ChatInput = ({
             onChange={(e) => {
               const textarea = e.target;
               textarea.style.height = textareaMinH;
-              textarea.style.height = `${textarea.scrollHeight}px`;
+              textarea.style.height = `${textarea.scrollHeight + 10}px`;
               setValue('input', textarea.value);
             }}
             onKeyDown={(e) => {
