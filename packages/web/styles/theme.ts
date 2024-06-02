@@ -429,7 +429,7 @@ export const theme = extendTheme({
   styles: {
     global: {
       'html, body': {
-        fontSize: '26px',
+        fontSize: '22px',
         color: 'myGray.900',
         fontWeight: 400,
         height: '100%',

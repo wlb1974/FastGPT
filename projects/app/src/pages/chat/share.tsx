@@ -279,6 +279,8 @@ const OutLink = ({
         {...(isEmbed
           ? { p: '0 !important', insertProps: { borderRadius: '0', boxShadow: 'none' } }
           : { p: [0, 5] })}
+        background={`url(/imgs/chatbackground.png)`}
+        
       >
         <MyBox
           isLoading={isFetching}
