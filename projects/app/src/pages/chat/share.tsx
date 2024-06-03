@@ -279,7 +279,6 @@ const OutLink = ({
         {...(isEmbed
           ? { p: '0 !important', insertProps: { borderRadius: '0', boxShadow: 'none' } }
           : { p: [0, 5] })}
-        background={`url(/imgs/chatbackground.png)`}
         
       >
         <MyBox
@@ -287,7 +286,10 @@ const OutLink = ({
           h={'100%'}
           display={'flex'}
           flexDirection={['column', 'row']}
-          bg={'white'}
+          // bg={'white'}
+          background={`url(/imgs/chatbackground.png)`}
+          backgroundSize="cover"
+          backgroundRepeat="no-repeat"
         >
           {showHistory === '1'
             ? ((children: React.ReactNode) => {
