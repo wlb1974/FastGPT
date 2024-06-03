@@ -218,7 +218,7 @@ ${toolResponse}`}
             {/* <ChatController {...chatControllerProps} isLastChild={isLastChild} /> */}
           </Box>
         )}
-        <ChatAvatar src={avatar} type={type} />
+        {/* <ChatAvatar src={avatar} type={type} /> */}
 
         {!!chatStatusMap && statusBoxData && isLastChild && (
           <Flex alignItems={'center'} px={3} py={'1.5px'} borderRadius="md" bg={chatStatusMap.bg}>
