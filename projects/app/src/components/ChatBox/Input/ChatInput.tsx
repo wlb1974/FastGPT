@@ -451,7 +451,8 @@ const ChatInput = ({
             alignItems={'center'}
             position={'absolute'}
             right={[2, 4]}
-            bottom={['15px', '16px']}
+            // bottom={['15px', '16px']}
+            
           >
             {/* voice-input */}
             {whisperConfig.open && !havInput && !isChatting && !!whisperModel && (
