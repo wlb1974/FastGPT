@@ -368,7 +368,7 @@ const ChatInput = ({
             // mr={['48px', '60px']}
             // bg={'transparent'}
             ml={['4vw','4vw']}
-            mr={['4vw','4vw']}
+            mr={['10vw','10vw']}
 
             // mr={['23.47vw','25vw']}
             position={'relative'}
