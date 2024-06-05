@@ -435,6 +435,16 @@ export const theme = extendTheme({
         height: '100%',
         overflow: 'hidden'
       },
+      '@media screen and (min-width: 500px)': { // for screens larger than 768px
+        'html, body': {
+          fontSize: '14px', // larger font size for larger screens
+        },
+      },
+      '@media screen and (min-width: 1280px)': { // for screens larger than 1280px
+        'html, body': {
+          fontSize: '12px', // larger font size for larger screens
+        },
+      },
       a: {
         color: 'primary.600'
       }

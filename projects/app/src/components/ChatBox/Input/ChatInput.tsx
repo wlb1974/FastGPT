@@ -221,8 +221,8 @@ const ChatInput = ({
     bg={'white'}
     >
       <Box
-        mt={['4vw','4vw']}
-        mb={['4vw','4vw']}
+        mt={['4vw','30px']}
+        mb={['4vw','30px']}
       
         // pt={fileList.length > 0 ? '10px' : ['7px', '9px']}
         // pb={['7px', '9px']}
@@ -367,7 +367,7 @@ const ChatInput = ({
             // pl={2}
             mr={['48px', '60px']}
             // bg={'transparent'}
-            ml={['4vw','4vw']}
+            ml={['4vw','30px']}
             // mr={['10vw','10vw']}
 
             // mr={['23.47vw','25vw']}
@@ -375,10 +375,10 @@ const ChatInput = ({
             // boxShadow={isSpeaking ? `0 0 10px rgba(54,111,255,0.4)` : `0 0 10px rgba(0,0,0,0.2)`}
             borderRadius={['xl', 'xl']}
             bg={'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'}
-            pl={['4vw','4vw']}
-            pt={'2vw'}
-            pb={'2vw'}
-            pr={'4vw'}
+            pl={['4vw','30px']}
+            pt={['2vw', '17px']}
+            pb={['2vw', '18px']}
+            pr={['4vw', '30px']}
             border={'none'}
             borderWidth={'0px'}
             // borderRadius={['xl', 'xl']}
