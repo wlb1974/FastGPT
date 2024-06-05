@@ -246,6 +246,7 @@ ${toolResponse}`}
           bg={styleMap.bg}
           borderRadius={styleMap.borderRadius}
           textAlign={'left'}
+          textColor={styleMap.color}
         >
           {ContentCard}
           {children}

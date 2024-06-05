@@ -10,7 +10,7 @@ export const MessageCardStyle: BoxProps = {
   boxShadow: 'none',
   display: 'inline-block',
   maxW: ['calc(100% - 25px)', 'calc(100% - 40px)'],
-  color: 'myGray.900'
+  // color: 'myGray.900'
 };
 
 export enum FeedbackTypeEnum {
