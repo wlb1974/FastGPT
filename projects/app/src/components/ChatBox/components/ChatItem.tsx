@@ -71,7 +71,7 @@ const ChatItem = ({
           textAlign: 'right',
           // bg: 'primary.100'
           bg: 'linear-gradient( 107deg, #388FF0 0%, #5796FE 100%), #FFFFFF;',
-          textColor: 'white'
+          color: 'white'
         }
       : {
           order: 1,
@@ -79,7 +79,7 @@ const ChatItem = ({
           justifyContent: 'flex-start',
           textAlign: 'left',
           bg: '#FFFFFF',
-          textColor: 'black'
+          color: 'black'
         };
 
   const isChatting = useContextSelector(ChatBoxContext, (v) => v.isChatting);
