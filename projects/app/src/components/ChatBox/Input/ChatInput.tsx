@@ -221,6 +221,9 @@ const ChatInput = ({
     bg={'white'}
     >
       <Box
+        mt={['4vw','4vw']}
+        mb={['4vw','4vw']}
+      
         // pt={fileList.length > 0 ? '10px' : ['7px', '9px']}
         // pb={['7px', '9px']}
         // ml={['4vw','4vw']}
@@ -336,8 +339,6 @@ const ChatInput = ({
 
         {/* mt={fileList.length > 0 ? 1 : 0} */}
         <Flex alignItems={'flex-end'}  pl={[2, 4]}
-          mt={['4vw','4vw']}
-          mb={['4vw','4vw']}
           ml={['4vw','4vw']}
           mr={['23.47vw','25vw']}
           position={'relative'}
