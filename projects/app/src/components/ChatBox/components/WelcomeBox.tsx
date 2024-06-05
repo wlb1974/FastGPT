@@ -8,7 +8,7 @@ const WelcomeBox = ({ appAvatar, welcomeText }: { appAvatar?: string; welcomeTex
   return (
     <Box py={3}>
       {/* avatar */}
-      <ChatAvatar src={appAvatar} type={'AI'} />
+      {/* <ChatAvatar src={appAvatar} type={'AI'} /> */}
       {/* message */}
       <Box textAlign={'left'}>
         <Card
@@ -17,6 +17,7 @@ const WelcomeBox = ({ appAvatar, welcomeText }: { appAvatar?: string; welcomeTex
           {...MessageCardStyle}
           bg={'white'}
           boxShadow={'0 0 8px rgba(0,0,0,0.15)'}
+          borderRadius={'xl'}
         >
           <Markdown source={`~~~guide \n${welcomeText}`} />
         </Card>
