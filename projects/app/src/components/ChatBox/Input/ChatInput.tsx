@@ -339,7 +339,7 @@ const ChatInput = ({
           mt={['4vw','4vw']}
           mb={['4vw','4vw']}
           ml={['4vw','4vw']}
-          // mr={['23.47vw','25vw']}
+          mr={['23.47vw','25vw']}
           position={'relative'}
           boxShadow={isSpeaking ? `0 0 10px rgba(54,111,255,0.4)` : `0 0 10px rgba(0,0,0,0.2)`}
           borderRadius={['xl', 'xl']}
@@ -371,6 +371,7 @@ const ChatInput = ({
             py={0}
             pl={2}
             mr={['48px', '60px']}
+            bg={'transparent'}
 
             // borderRadius={['xl', 'xl']}
             // bg={'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'}
