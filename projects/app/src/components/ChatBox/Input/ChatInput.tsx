@@ -218,11 +218,13 @@ const ChatInput = ({
 
   return (
     <Box m={['0 auto ', '10px auto ']} w={'100%'} maxW={['auto', 'min(800px, 100%)']} px={[0, 5] } 
+    bg={'white'}
     >
       <Box
         pt={fileList.length > 0 ? '10px' : ['7px', '9px']}
         pb={['7px', '9px']}
-        ml={['15vw','18vw']}
+        ml={['4vw','4vw']}
+        mr={['23.47vw','25vw']}
         position={'relative'}
         boxShadow={isSpeaking ? `0 0 10px rgba(54,111,255,0.4)` : `0 0 10px rgba(0,0,0,0.2)`}
         borderRadius={['xl', 'xl']}
