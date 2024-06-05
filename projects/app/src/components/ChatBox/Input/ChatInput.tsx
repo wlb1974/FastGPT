@@ -222,6 +222,7 @@ const ChatInput = ({
       <Box
         pt={fileList.length > 0 ? '10px' : ['7px', '9px']}
         pb={['7px', '9px']}
+        ml={['15vw','18vw']}
         position={'relative'}
         boxShadow={isSpeaking ? `0 0 10px rgba(54,111,255,0.4)` : `0 0 10px rgba(0,0,0,0.2)`}
         borderRadius={['xl', 'xl']}
@@ -363,7 +364,7 @@ const ChatInput = ({
             // bg={'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'}
             _focusVisible={{
                   border: 'none' ,
-                  opacity: 0,
+                  background: 'transparent',
                   // background : 'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'
                 }}
             placeholder={isSpeaking ? t('core.chat.Speaking') : t('core.chat.Type a message')}
