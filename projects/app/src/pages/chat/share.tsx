@@ -376,14 +376,14 @@ const OutLink = ({
             flexDirection={'column'}
           >
             {/* header */}
-            <ChatHeader
+            {/* <ChatHeader
               appAvatar={chatData.app.avatar}
               appName={chatData.app.name}
               history={chatData.history}
               showHistory={showHistory === '1'}
               onOpenSlider={onOpenSlider}
               appId={chatData.appId}
-            />
+            /> */}
             {/* chat box */}
             <Box flex={1}>
               <ChatBox
