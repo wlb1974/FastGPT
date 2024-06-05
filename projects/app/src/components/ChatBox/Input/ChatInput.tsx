@@ -365,10 +365,10 @@ const ChatInput = ({
             ref={TextareaDom}
             py={0}
             // pl={2}
-            // mr={['48px', '60px']}
+            mr={['48px', '60px']}
             // bg={'transparent'}
             ml={['4vw','4vw']}
-            mr={['10vw','10vw']}
+            // mr={['10vw','10vw']}
 
             // mr={['23.47vw','25vw']}
             position={'relative'}
