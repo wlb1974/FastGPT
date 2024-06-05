@@ -1,7 +1,7 @@
 import { BoxProps } from '@chakra-ui/react';
 
 // 22px --> 40px 字体调整后
-export const textareaMinH = '22px';
+export const textareaMinH = '47px';
 
 export const MessageCardStyle: BoxProps = {
   px: 4,
