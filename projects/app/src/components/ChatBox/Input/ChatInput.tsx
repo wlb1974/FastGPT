@@ -220,12 +220,12 @@ const ChatInput = ({
     <Box m={['0 auto ', '10px auto ']} w={'100%'} maxW={['auto', 'min(800px, 100%)']} px={[0, 5] } 
     >
       <Box
-        pt={fileList.length > 0 ? '10px' : ['14px', '18px']}
-        pb={['14px', '18px']}
+        pt={fileList.length > 0 ? '10px' : ['7px', '9px']}
+        pb={['7px', '9px']}
         position={'relative'}
-        // boxShadow={isSpeaking ? `0 0 10px rgba(54,111,255,0.4)` : `0 0 10px rgba(0,0,0,0.2)`}
-        // borderRadius={['lg', '1g']}
-        // bg={'linear-gradient( 107deg, rgba(56,143,240,0.9) 10%, rgba(87, 150, 254, 0.9) 10%);'}
+        boxShadow={isSpeaking ? `0 0 10px rgba(54,111,255,0.4)` : `0 0 10px rgba(0,0,0,0.2)`}
+        borderRadius={['xl', 'xl']}
+        bg={'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'}
         overflow={'display'}
         // {...(isPc
         //   ? {
@@ -367,11 +367,11 @@ const ChatInput = ({
                   borderTop: '1px solid',
                   borderTopColor: 'rgba(0,0,0,0.15)'
                 })}
-            borderRadius={['xl', 'xl']}
-            bg={'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'}
+            // borderRadius={['xl', 'xl']}
+            // bg={'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'}
             _focusVisible={{
-                  // border: 'none' ,
-                  background : 'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'
+                  border: 'none' ,
+                  // background : 'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'
                 }}
             placeholder={isSpeaking ? t('core.chat.Speaking') : t('core.chat.Type a message')}
             resize={'none'}
