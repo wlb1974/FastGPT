@@ -227,15 +227,15 @@ const ChatInput = ({
         borderRadius={['xl', 'xl']}
         bg={'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'}
         overflow={'display'}
-        // {...(isPc
-        //   ? {
-        //       border: '1px solid',
-        //       borderColor: 'rgba(0,0,0,0.12)'
-        //     }
-        //   : {
-        //       borderTop: '1px solid',
-        //       borderTopColor: 'rgba(0,0,0,0.15)'
-        //     })}
+        {...(isPc
+          ? {
+              border: '1px solid',
+              borderColor: 'rgba(0,0,0,0.12)'
+            }
+          : {
+              borderTop: '1px solid',
+              borderTopColor: 'rgba(0,0,0,0.15)'
+            })}
       >
         {/* Chat input guide box */}
         {chatInputGuide.open && (
@@ -358,25 +358,18 @@ const ChatInput = ({
             py={0}
             pl={2}
             mr={['48px', '60px']}
-            {...(isPc
-              ? {
-                  border: '1px solid',
-                  borderColor: 'rgba(0,0,0,0.12)'
-                }
-              : {
-                  borderTop: '1px solid',
-                  borderTopColor: 'rgba(0,0,0,0.15)'
-                })}
+
             // borderRadius={['xl', 'xl']}
             // bg={'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'}
             _focusVisible={{
                   border: 'none' ,
+                  opacity: 0,
                   // background : 'linear-gradient( 107deg, rgba(56,143,240,0.1) 0%, rgba(87, 150, 254, 0.1) 100%);'
                 }}
             placeholder={isSpeaking ? t('core.chat.Speaking') : t('core.chat.Type a message')}
             resize={'none'}
             rows={1}
-            height={'40px'}
+            height={'30px'}
             lineHeight={'30px'}
             maxHeight={'60vh'}
             maxLength={-1}
