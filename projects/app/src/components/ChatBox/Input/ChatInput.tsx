@@ -221,8 +221,8 @@ const ChatInput = ({
     bg={'white'}
     >
       <Box
-        pt={fileList.length > 0 ? '10px' : ['7px', '9px']}
-        pb={['7px', '9px']}
+        // pt={fileList.length > 0 ? '10px' : ['7px', '9px']}
+        // pb={['7px', '9px']}
         // ml={['4vw','4vw']}
         // mr={['23.47vw','25vw']}
         // position={'relative'}
