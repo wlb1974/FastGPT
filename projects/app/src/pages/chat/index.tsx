@@ -249,6 +249,12 @@ const Chat = ({ appId, chatId }: { appId: string; chatId: string }) => {
     <Flex h={'100%'}>
       <Head>
         <title>{chatData.app.name}</title>
+        { 
+          isPc ?
+            null
+          :
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" /> 
+        }
       </Head>
       {/* pc show myself apps */}
       {isPc && (

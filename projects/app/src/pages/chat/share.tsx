@@ -274,6 +274,14 @@ const OutLink = ({
         <title>{appName || chatData.app?.name}</title>
         <meta name="description" content={appIntro} />
         <link rel="icon" href={appAvatar || chatData.app?.avatar} />
+        { 
+          isPc ?
+            null
+          :
+            <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+          
+        }
+        
       </Head>
       <PageContainer
         {...(isEmbed
