@@ -3,6 +3,7 @@
   "version": "4.0",
   "private": true,
   "scripts": {
+    "build": "babel src --out-dir lib",
     "prepare": "husky install",
     "format-code": "prettier --config \"./.prettierrc.js\" --write \"./**/src/**/*.{ts,tsx,scss}\"",
     "format-doc": "zhlint --dir ./docSite *.md --fix",
