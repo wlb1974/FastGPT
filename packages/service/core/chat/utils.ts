@@ -11,17 +11,6 @@ import { serverRequestBaseUrl } from '../../common/api/serverRequest';
 import { i18nT } from '../../../web/i18n/utils';
 import { addLog } from '../../common/system/log';
 
-/* slice chat context by tokens */
-const filterEmptyMessages = (messages: ChatCompletionMessageParam[]) => {
-  return messages.filter((item) => {
-    if (item.role === ChatCompletionRequestMessageRoleEnum.System) return !!item.content;
-    if (item.role === ChatCompletionRequestMessageRoleEnum.User) return !!item.content;
-    if (item.role === ChatCompletionRequestMessageRoleEnum.Assistant)
-      return !!item.content || !!item.function_call || !!item.tool_calls;
-    return true;
-  });
-};
-
 export const filterGPTMessageByMaxTokens = async ({
   messages = [],
   maxTokens
@@ -52,7 +41,7 @@ export const filterGPTMessageByMaxTokens = async ({
 
   // If the text length is less than half of the maximum token, no calculation is required
   if (rawTextLen < maxTokens * 0.5) {
-    return filterEmptyMessages(messages);
+    return messages;
   }
 
   // filter startWith system prompt
@@ -95,7 +84,7 @@ export const filterGPTMessageByMaxTokens = async ({
     }
   }
 
-  return filterEmptyMessages([...systemPrompts, ...chats]);
+  return [...systemPrompts, ...chats];
 };
 
 /* 
@@ -126,38 +115,56 @@ export const loadRequestMessages = async ({
             return item.image_url.url;
           })();
 
-          // If imgUrl is a local path, load image from local, and set url to base64
-          if (imgUrl.startsWith('/') || process.env.VISION_FOCUS_BASE64 === 'true') {
-            addLog.debug('Load image from local server', {
-              baseUrl: serverRequestBaseUrl,
-              requestUrl: imgUrl
-            });
-            const response = await axios.get(imgUrl, {
-              baseURL: serverRequestBaseUrl,
-              responseType: 'arraybuffer',
-              proxy: false
-            });
-            const base64 = Buffer.from(response.data, 'binary').toString('base64');
-            const imageType =
-              getFileContentTypeFromHeader(response.headers['content-type']) ||
-              guessBase64ImageType(base64);
+          // base64 image
+          if (imgUrl.startsWith('data:image/')) {
+            return item;
+          }
 
-            return {
-              ...item,
-              image_url: {
-                ...item.image_url,
-                url: `data:${imageType};base64,${base64}`
-              }
-            };
+          try {
+            // If imgUrl is a local path, load image from local, and set url to base64
+            if (imgUrl.startsWith('/') || process.env.MULTIPLE_DATA_TO_BASE64 === 'true') {
+              addLog.debug('Load image from local server', {
+                baseUrl: serverRequestBaseUrl,
+                requestUrl: imgUrl
+              });
+              const response = await axios.get(imgUrl, {
+                baseURL: serverRequestBaseUrl,
+                responseType: 'arraybuffer',
+                proxy: false
+              });
+              const base64 = Buffer.from(response.data, 'binary').toString('base64');
+              const imageType =
+                getFileContentTypeFromHeader(response.headers['content-type']) ||
+                guessBase64ImageType(base64);
+
+              return {
+                ...item,
+                image_url: {
+                  ...item.image_url,
+                  url: `data:${imageType};base64,${base64}`
+                }
+              };
+            }
+
+            // 检查下这个图片是否可以被访问，如果不行的话，则过滤掉
+            const response = await axios.head(imgUrl, {
+              timeout: 10000
+            });
+            if (response.status < 200 || response.status >= 400) {
+              addLog.info(`Filter invalid image: ${imgUrl}`);
+              return;
+            }
+          } catch (error) {
+            return;
           }
         }
         return item;
       })
-    );
+    ).then((res) => res.filter(Boolean) as ChatCompletionContentPart[]);
   };
   // Split question text and image
   const parseStringWithImages = (input: string): ChatCompletionContentPart[] => {
-    if (!useVision) {
+    if (!useVision || input.length > 500) {
       return [{ type: 'text', text: input || '' }];
     }
 
@@ -178,8 +185,8 @@ export const loadRequestMessages = async ({
       });
     });
 
-    // Too many images or too long text, return text
-    if (httpsImages.length > 4 || input.length > 1000) {
+    // Too many images return text
+    if (httpsImages.length > 4) {
       return [{ type: 'text', text: input || '' }];
     }
 
@@ -187,7 +194,7 @@ export const loadRequestMessages = async ({
     result.push({ type: 'text', text: input });
     return result;
   };
-  // Parse user content(text and img)
+  // Parse user content(text and img) Store history => api messages
   const parseUserContent = async (content: string | ChatCompletionContentPart[]) => {
     if (typeof content === 'string') {
       return loadImageToBase64(parseStringWithImages(content));
@@ -215,7 +222,7 @@ export const loadRequestMessages = async ({
           return;
         }
         if (item.role === ChatCompletionRequestMessageRoleEnum.User) {
-          if (!item.content) return;
+          if (item.content === undefined) return;
 
           if (typeof item.content === 'string') {
             return {
@@ -234,8 +241,7 @@ export const loadRequestMessages = async ({
           }
         }
         if (item.role === ChatCompletionRequestMessageRoleEnum.Assistant) {
-          if (item.content !== undefined && !item.content) return;
-          if (Array.isArray(item.content) && item.content.length === 0) return;
+          if (item.content === undefined && !item.tool_calls && !item.function_call) return;
         }
 
         return item;

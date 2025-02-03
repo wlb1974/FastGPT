@@ -1,10 +1,11 @@
 import { mongoSessionRun } from '../../common/mongo/sessionRun';
 import { MongoResourcePermission } from './schema';
-import { ClientSession, Model } from 'mongoose';
-import { NullPermission, PerResourceTypeEnum } from '@fastgpt/global/support/permission/constant';
-import { PermissionValueType } from '@fastgpt/global/support/permission/type';
-import { ParentIdType } from '@fastgpt/global/common/parentFolder/type';
-import { getResourceAllClbs } from './controller';
+import type { ClientSession, Model } from 'mongoose';
+import type { PerResourceTypeEnum } from '@fastgpt/global/support/permission/constant';
+import type { PermissionValueType } from '@fastgpt/global/support/permission/type';
+import { getResourceClbsAndGroups } from './controller';
+import type { RequireOnlyOne } from '@fastgpt/global/common/type/utils';
+import type { ParentIdType } from '@fastgpt/global/common/parentFolder/type';
 
 export type SyncChildrenPermissionResourceType = {
   _id: string;
@@ -14,8 +15,11 @@ export type SyncChildrenPermissionResourceType = {
 };
 export type UpdateCollaboratorItem = {
   permission: PermissionValueType;
+} & RequireOnlyOne<{
   tmbId: string;
-};
+  groupId: string;
+  orgId: string;
+}>;
 
 // sync the permission to all children folders.
 export async function syncChildrenPermission({
@@ -25,7 +29,6 @@ export async function syncChildrenPermission({
   resourceModel,
   session,
 
-  defaultPermission,
   collaborators
 }: {
   resource: SyncChildrenPermissionResourceType;
@@ -39,7 +42,6 @@ export async function syncChildrenPermission({
   // should be provided when inheritPermission is true
   session: ClientSession;
 
-  defaultPermission?: PermissionValueType;
   collaborators?: UpdateCollaboratorItem[];
 }) {
   // only folder has permission
@@ -72,19 +74,6 @@ export async function syncChildrenPermission({
     queue.push(...folderChildren.map((folder) => folder._id));
   }
   if (!children.length) return;
-
-  // Sync default permission
-  if (defaultPermission !== undefined) {
-    await resourceModel.updateMany(
-      {
-        _id: { $in: children }
-      },
-      {
-        defaultPermission
-      },
-      { session }
-    );
-  }
 
   // sync the resource permission
   if (collaborators) {
@@ -121,28 +110,20 @@ export async function resumeInheritPermission({
   const isFolder = folderTypeList.includes(resource.type);
 
   const fn = async (session: ClientSession) => {
-    const parentResource = await resourceModel
-      .findById(resource.parentId, 'defaultPermission')
-      .lean<SyncChildrenPermissionResourceType & { defaultPermission: PermissionValueType }>()
-      .session(session);
-
-    const parentDefaultPermissionVal = parentResource?.defaultPermission ?? NullPermission;
-
     // update the resource permission
     await resourceModel.updateOne(
       {
         _id: resource._id
       },
       {
-        inheritPermission: true,
-        defaultPermission: parentDefaultPermissionVal
+        inheritPermission: true
       },
       { session }
     );
 
     // Folder resource, need to sync children
     if (isFolder) {
-      const parentClbs = await getResourceAllClbs({
+      const parentClbsAndGroups = await getResourceClbsAndGroups({
         resourceId: resource.parentId,
         teamId: resource.teamId,
         resourceType,
@@ -152,7 +133,7 @@ export async function resumeInheritPermission({
       // sync self
       await syncCollaborators({
         resourceType,
-        collaborators: parentClbs,
+        collaborators: parentClbsAndGroups,
         teamId: resource.teamId,
         resourceId: resource._id,
         session
@@ -166,8 +147,7 @@ export async function resumeInheritPermission({
         folderTypeList,
         resourceType,
         session,
-        defaultPermission: parentDefaultPermissionVal,
-        collaborators: parentClbs
+        collaborators: parentClbsAndGroups
       });
     } else {
       // Not folder, delete all clb
@@ -182,7 +162,7 @@ export async function resumeInheritPermission({
   }
 }
 
-/* 
+/*
   Delete all the collaborators and then insert the new collaborators.
 */
 export async function syncCollaborators({
@@ -212,6 +192,7 @@ export async function syncCollaborators({
       resourceId,
       resourceType: resourceType,
       tmbId: item.tmbId,
+      groupId: item.groupId,
       permission: item.permission
     })),
     {

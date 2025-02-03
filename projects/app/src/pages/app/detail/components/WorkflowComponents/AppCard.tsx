@@ -1,113 +1,146 @@
 import React, { useCallback, useMemo } from 'react';
 import { Box, Flex, HStack, useDisclosure } from '@chakra-ui/react';
 import { useContextSelector } from 'use-context-selector';
-import { AppContext, TabEnum } from '../context';
+import { AppContext } from '../context';
 import { useTranslation } from 'next-i18next';
 import Avatar from '@fastgpt/web/components/common/Avatar';
-import MyMenu from '@fastgpt/web/components/common/MyMenu';
 import MyIcon from '@fastgpt/web/components/common/Icon';
 import { WorkflowContext } from './context';
-import { filterSensitiveNodesData } from '@/web/core/workflow/utils';
 import dynamic from 'next/dynamic';
-import { useCopyData } from '@/web/common/hooks/useCopyData';
-import { useSystemStore } from '@/web/common/system/useSystemStore';
 import MyTag from '@fastgpt/web/components/common/Tag/index';
 import { publishStatusStyle } from '../constants';
 import MyPopover from '@fastgpt/web/components/common/MyPopover';
-import { fileDownload } from '@/web/common/file/utils';
-import { AppChatConfigType } from '@fastgpt/global/core/app/type';
+import MyBox from '@fastgpt/web/components/common/MyBox';
+import { useSystemStore } from '@/web/common/system/useSystemStore';
 
 const ImportSettings = dynamic(() => import('./Flow/ImportSettings'));
+const ExportConfigPopover = dynamic(
+  () => import('@/pageComponents/app/detail/ExportConfigPopover')
+);
 
-const AppCard = ({
-  showSaveStatus,
-  isPublished
-}: {
-  showSaveStatus: boolean;
-  isPublished: boolean;
-}) => {
+const AppCard = ({ showSaveStatus, isSaved }: { showSaveStatus: boolean; isSaved: boolean }) => {
   const { t } = useTranslation();
   const { feConfigs } = useSystemStore();
 
-  const { appDetail, onOpenInfoEdit, onOpenTeamTagModal, onDelApp, currentTab } =
-    useContextSelector(AppContext, (v) => v);
-  const { showHistoryModal } = useContextSelector(WorkflowContext, (v) => v);
+  const appDetail = useContextSelector(AppContext, (v) => v.appDetail);
+  const onOpenInfoEdit = useContextSelector(AppContext, (v) => v.onOpenInfoEdit);
+  const onOpenTeamTagModal = useContextSelector(AppContext, (v) => v.onOpenTeamTagModal);
+  const onDelApp = useContextSelector(AppContext, (v) => v.onDelApp);
+  const flowData2StoreData = useContextSelector(WorkflowContext, (v) => v.flowData2StoreData);
 
   const { isOpen: isOpenImport, onOpen: onOpenImport, onClose: onCloseImport } = useDisclosure();
 
   const InfoMenu = useCallback(
     ({ children }: { children: React.ReactNode }) => {
       return (
-        <MyMenu
-          width={150}
-          Button={children}
-          menuList={[
-            {
-              children: [
-                {
-                  icon: 'edit',
-                  label: t('app:edit_info'),
-                  onClick: onOpenInfoEdit
-                },
-                {
-                  icon: 'support/team/key',
-                  label: t('common:common.Role'),
-                  onClick: onOpenInfoEdit
-                }
-              ]
-            },
-            ...(!showHistoryModal && currentTab === TabEnum.appEdit
-              ? [
-                  {
-                    children: [
-                      {
-                        label: t('app:import_configs'),
-                        icon: 'common/importLight',
-                        onClick: onOpenImport
-                      },
-                      {
-                        label: ExportPopover({
-                          chatConfig: appDetail.chatConfig,
-                          appName: appDetail.name
-                        }),
-                        menuItemStyles: {
-                          p: 0,
-                          cursor: 'default'
-                        }
-                      }
-                    ]
-                  }
-                ]
-              : []),
-            ...(appDetail.permission.hasWritePer && feConfigs?.show_team_chat
-              ? [
-                  {
-                    children: [
-                      {
-                        icon: 'support/team/memberLight',
-                        label: t('common:common.Team Tags Set'),
-                        onClick: onOpenTeamTagModal
-                      }
-                    ]
-                  }
-                ]
-              : []),
-            ...(appDetail.permission.isOwner
-              ? [
-                  {
-                    children: [
-                      {
-                        type: 'danger' as 'danger',
-                        icon: 'delete',
-                        label: t('common:common.Delete'),
-                        onClick: onDelApp
-                      }
-                    ]
-                  }
-                ]
-              : [])
-          ]}
-        />
+        <MyPopover
+          placement={'bottom-end'}
+          hasArrow={false}
+          offset={[2, 4]}
+          w={'116px'}
+          trigger={'hover'}
+          Trigger={children}
+        >
+          {({ onClose }) => (
+            <Box p={1.5}>
+              <MyBox
+                display={'flex'}
+                size={'md'}
+                px={1}
+                py={1.5}
+                rounded={'4px'}
+                _hover={{ color: 'primary.600', bg: 'rgba(17, 24, 36, 0.05)' }}
+                cursor={'pointer'}
+                onClick={onOpenInfoEdit}
+              >
+                <MyIcon name={'edit'} w={'16px'} mr={2} />
+                <Box fontSize={'sm'}>{t('app:edit_info')}</Box>
+              </MyBox>
+              <MyBox
+                display={'flex'}
+                size={'md'}
+                px={1}
+                py={1.5}
+                rounded={'4px'}
+                _hover={{ color: 'primary.600', bg: 'rgba(17, 24, 36, 0.05)' }}
+                cursor={'pointer'}
+                onClick={onOpenInfoEdit}
+              >
+                <MyIcon name={'key'} w={'16px'} mr={2} />
+                <Box fontSize={'sm'}>{t('app:Role_setting')}</Box>
+              </MyBox>
+              <Box w={'full'} h={'1px'} bg={'myGray.200'} my={1} />
+              <MyBox
+                display={'flex'}
+                size={'md'}
+                px={1}
+                py={1.5}
+                rounded={'4px'}
+                _hover={{ color: 'primary.600', bg: 'rgba(17, 24, 36, 0.05)' }}
+                cursor={'pointer'}
+                onClick={onOpenImport}
+              >
+                <MyIcon name={'common/importLight'} w={'16px'} mr={2} />
+                <Box fontSize={'sm'}>{t('app:import_configs')}</Box>
+              </MyBox>
+              <MyBox
+                display={'flex'}
+                size={'md'}
+                px={1}
+                py={1.5}
+                rounded={'4px'}
+                _hover={{ color: 'primary.600', bg: 'rgba(17, 24, 36, 0.05)' }}
+                cursor={'pointer'}
+              >
+                <ExportConfigPopover
+                  chatConfig={appDetail.chatConfig}
+                  appName={appDetail.name}
+                  getWorkflowData={flowData2StoreData}
+                />
+              </MyBox>
+              {appDetail.permission.hasWritePer && feConfigs?.show_team_chat && (
+                <>
+                  <Box w={'full'} h={'1px'} bg={'myGray.200'} my={1} />
+
+                  <MyBox
+                    display={'flex'}
+                    size={'md'}
+                    px={1}
+                    py={1.5}
+                    rounded={'4px'}
+                    _hover={{ color: 'primary.600', bg: 'rgba(17, 24, 36, 0.05)' }}
+                    cursor={'pointer'}
+                    onClick={onOpenTeamTagModal}
+                  >
+                    <MyIcon name={'core/dataset/tag'} w={'16px'} mr={2} />
+                    <Box fontSize={'sm'}>{t('app:Team_Tags')}</Box>
+                  </MyBox>
+                </>
+              )}
+
+              {appDetail.permission.isOwner && (
+                <>
+                  <Box w={'full'} h={'1px'} bg={'myGray.200'} my={1} />
+
+                  <MyBox
+                    display={'flex'}
+                    size={'md'}
+                    px={1}
+                    py={1.5}
+                    rounded={'4px'}
+                    color={'red.600'}
+                    _hover={{ bg: 'rgba(17, 24, 36, 0.05)' }}
+                    cursor={'pointer'}
+                    onClick={onDelApp}
+                  >
+                    <MyIcon name={'delete'} w={'16px'} mr={2} />
+                    <Box fontSize={'sm'}>{t('common:common.Delete')}</Box>
+                  </MyBox>
+                </>
+              )}
+            </Box>
+          )}
+        </MyPopover>
       );
     },
     [
@@ -115,9 +148,8 @@ const AppCard = ({
       appDetail.name,
       appDetail.permission.hasWritePer,
       appDetail.permission.isOwner,
-      currentTab,
       feConfigs?.show_team_chat,
-      showHistoryModal,
+      flowData2StoreData,
       onDelApp,
       onOpenImport,
       onOpenInfoEdit,
@@ -129,34 +161,35 @@ const AppCard = ({
   const Render = useMemo(() => {
     return (
       <HStack>
-        <InfoMenu>
-          <Avatar src={appDetail.avatar} w={'1.75rem'} borderRadius={'md'} />
-        </InfoMenu>
+        <Avatar src={appDetail.avatar} w={'1.75rem'} borderRadius={'md'} />
         <Box>
           <InfoMenu>
-            <HStack spacing={1} cursor={'pointer'}>
+            <HStack
+              spacing={1}
+              cursor={'pointer'}
+              pl={1}
+              ml={-1}
+              borderRadius={'xs'}
+              _hover={{ bg: 'myGray.150' }}
+            >
               <Box color={'myGray.900'}>{appDetail.name}</Box>
-              <MyIcon name={'common/select'} w={'1rem'} />
+              <MyIcon name={'common/select'} w={'1rem'} color={'myGray.500'} />
             </HStack>
           </InfoMenu>
           {showSaveStatus && (
-            <Flex alignItems={'center'} h={'20px'} fontSize={'mini'} lineHeight={1}>
+            <Flex alignItems={'center'} fontSize={'mini'} lineHeight={1}>
               <MyTag
                 py={0}
-                px={0}
+                px={1}
                 showDot
                 bg={'transparent'}
                 colorSchema={
-                  isPublished
+                  isSaved
                     ? publishStatusStyle.published.colorSchema
                     : publishStatusStyle.unPublish.colorSchema
                 }
               >
-                {t(
-                  isPublished
-                    ? publishStatusStyle.published.text
-                    : publishStatusStyle.unPublish.text
-                )}
+                {t(isSaved ? publishStatusStyle.published.text : publishStatusStyle.unPublish.text)}
               </MyTag>
             </Flex>
           )}
@@ -170,7 +203,7 @@ const AppCard = ({
     appDetail.avatar,
     appDetail.name,
     isOpenImport,
-    isPublished,
+    isSaved,
     onCloseImport,
     showSaveStatus,
     t
@@ -178,104 +211,5 @@ const AppCard = ({
 
   return Render;
 };
-
-function ExportPopover({
-  chatConfig,
-  appName
-}: {
-  chatConfig: AppChatConfigType;
-  appName: string;
-}) {
-  const { t } = useTranslation();
-  const { copyData } = useCopyData();
-  const { flowData2StoreDataAndCheck } = useContextSelector(WorkflowContext, (v) => v);
-
-  const onExportWorkflow = useCallback(async () => {
-    const data = flowData2StoreDataAndCheck();
-    if (data) {
-      copyData(
-        JSON.stringify(
-          {
-            nodes: filterSensitiveNodesData(data.nodes),
-            edges: data.edges,
-            chatConfig: chatConfig
-          },
-          null,
-          2
-        ),
-        t('app:export_config_successful')
-      );
-    }
-  }, [chatConfig, copyData, flowData2StoreDataAndCheck, t]);
-
-  return (
-    <MyPopover
-      placement={'right-start'}
-      offset={[0, 0]}
-      hasArrow
-      trigger={'hover'}
-      w={'8.6rem'}
-      Trigger={
-        <Flex align={'center'} w={'100%'} py={2} px={3}>
-          <Avatar src={'export'} borderRadius={'sm'} w={'1rem'} mr={3} />
-          {t('app:export_configs')}
-        </Flex>
-      }
-    >
-      {({ onClose }) => (
-        <Box p={1}>
-          <Flex
-            py={'0.38rem'}
-            px={1}
-            color={'myGray.600'}
-            _hover={{
-              bg: 'myGray.05',
-              color: 'primary.600',
-              cursor: 'pointer'
-            }}
-            borderRadius={'xs'}
-            onClick={onExportWorkflow}
-          >
-            <MyIcon name={'copy'} w={'1rem'} mr={2} />
-            <Box fontSize={'mini'}>{t('common:common.copy_to_clipboard')}</Box>
-          </Flex>
-          <Flex
-            py={'0.38rem'}
-            px={1}
-            color={'myGray.600'}
-            _hover={{
-              bg: 'myGray.05',
-              color: 'primary.600',
-              cursor: 'pointer'
-            }}
-            borderRadius={'xs'}
-            onClick={() => {
-              const data = flowData2StoreDataAndCheck();
-
-              if (!data) return;
-
-              fileDownload({
-                text: JSON.stringify(
-                  {
-                    nodes: filterSensitiveNodesData(data.nodes),
-                    edges: data.edges,
-                    chatConfig: chatConfig
-                  },
-                  null,
-                  2
-                ),
-                type: 'application/json;charset=utf-8',
-                filename: `${appName}.json`
-              });
-            }}
-          >
-            <MyIcon name={'configmap'} w={'1rem'} mr={2} />
-            <Box fontSize={'mini'}>{t('common:common.export_to_json')}</Box>
-          </Flex>
-        </Box>
-      )}
-    </MyPopover>
-  );
-}
 
 export default AppCard;

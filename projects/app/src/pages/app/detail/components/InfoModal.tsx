@@ -1,44 +1,37 @@
-import React, { useCallback } from 'react';
+import CollaboratorContextProvider from '@/components/support/permission/MemberManager/context';
+import ResumeInherit from '@/components/support/permission/ResumeInheritText';
+import { AppContext } from '@/pages/app/detail/components/context';
+import { useSelectFile } from '@/web/common/file/hooks/useSelectFile';
+import { useI18n } from '@/web/context/I18n';
+import { resumeInheritPer } from '@/web/core/app/api';
+import {
+  deleteAppCollaborators,
+  getCollaboratorList,
+  postUpdateAppCollaborators
+} from '@/web/core/app/api/collaborator';
 import {
   Box,
-  Flex,
   Button,
+  Flex,
   FormControl,
   Input,
-  Textarea,
-  ModalFooter,
   ModalBody,
-  useDisclosure
+  ModalFooter,
+  Textarea
 } from '@chakra-ui/react';
-import { useForm } from 'react-hook-form';
-import { AppSchema } from '@fastgpt/global/core/app/type.d';
-import { useToast } from '@fastgpt/web/hooks/useToast';
-import { useSelectFile } from '@/web/common/file/hooks/useSelectFile';
-import { compressImgFileAndUpload } from '@/web/common/file/controller';
-import { getErrText } from '@fastgpt/global/common/error/utils';
-import { useRequest2 } from '@fastgpt/web/hooks/useRequest';
+import type { RequireOnlyOne } from '@fastgpt/global/common/type/utils';
+import type { AppSchema } from '@fastgpt/global/core/app/type.d';
+import { AppPermissionList } from '@fastgpt/global/support/permission/app/constant';
+import type { PermissionValueType } from '@fastgpt/global/support/permission/type';
 import Avatar from '@fastgpt/web/components/common/Avatar';
-import MyModal from '@fastgpt/web/components/common/MyModal';
-import { useTranslation } from 'next-i18next';
-import { MongoImageTypeEnum } from '@fastgpt/global/common/file/image/constants';
-import CollaboratorContextProvider from '@/components/support/permission/MemberManager/context';
-import {
-  postUpdateAppCollaborators,
-  deleteAppCollaborators,
-  getCollaboratorList
-} from '@/web/core/app/api/collaborator';
-import { useContextSelector } from 'use-context-selector';
-import { AppContext } from '@/pages/app/detail/components/context';
-import {
-  AppDefaultPermissionVal,
-  AppPermissionList
-} from '@fastgpt/global/support/permission/app/constant';
-import DefaultPermissionList from '@/components/support/permission/DefaultPerList';
 import MyIcon from '@fastgpt/web/components/common/Icon';
-import { UpdateClbPermissionProps } from '@fastgpt/global/support/permission/collaborator';
-import { resumeInheritPer } from '@/web/core/app/api';
-import { useI18n } from '@/web/context/I18n';
-import ResumeInherit from '@/components/support/permission/ResumeInheritText';
+import MyModal from '@fastgpt/web/components/common/MyModal';
+import { useRequest2 } from '@fastgpt/web/hooks/useRequest';
+import { useToast } from '@fastgpt/web/hooks/useToast';
+import { useTranslation } from 'next-i18next';
+import React, { useCallback } from 'react';
+import { useForm } from 'react-hook-form';
+import { useContextSelector } from 'use-context-selector';
 
 const InfoModal = ({ onClose }: { onClose: () => void }) => {
   const { t } = useTranslation();
@@ -46,7 +39,11 @@ const InfoModal = ({ onClose }: { onClose: () => void }) => {
   const { toast } = useToast();
   const { updateAppDetail, appDetail, reloadApp } = useContextSelector(AppContext, (v) => v);
 
-  const { File, onOpen: onOpenSelectFile } = useSelectFile({
+  const {
+    File,
+    onOpen: onOpenSelectFile,
+    onSelectImage
+  } = useSelectFile({
     fileType: '.jpg,.png',
     multiple: false
   });
@@ -54,14 +51,13 @@ const InfoModal = ({ onClose }: { onClose: () => void }) => {
   const {
     register,
     setValue,
-    getValues,
+    watch,
     formState: { errors },
     handleSubmit
   } = useForm({
     defaultValues: appDetail
   });
-  const avatar = getValues('avatar');
-  const name = getValues('name');
+  const avatar = watch('avatar');
 
   // submit config
   const { runAsync: saveSubmitSuccess, loading: btnLoading } = useRequest2(
@@ -69,8 +65,7 @@ const InfoModal = ({ onClose }: { onClose: () => void }) => {
       await updateAppDetail({
         name: data.name,
         avatar: data.avatar,
-        intro: data.intro,
-        defaultPermission: data.defaultPermission
+        intro: data.intro
       });
     },
     {
@@ -107,53 +102,39 @@ const InfoModal = ({ onClose }: { onClose: () => void }) => {
     [handleSubmit, onClose, saveSubmitError, saveSubmitSuccess]
   );
 
-  const onSelectFile = useCallback(
-    async (e: File[]) => {
-      const file = e[0];
-      if (!file) return;
-      try {
-        const src = await compressImgFileAndUpload({
-          type: MongoImageTypeEnum.appAvatar,
-          file,
-          maxW: 300,
-          maxH: 300
-        });
-        setValue('avatar', src);
-      } catch (err: any) {
-        toast({
-          title: getErrText(err, t('common:common.error.Select avatar failed')),
-          status: 'warning'
-        });
-      }
-    },
-    [setValue, t, toast]
-  );
-
-  const onUpdateCollaborators = async ({ tmbIds, permission }: UpdateClbPermissionProps) => {
-    await postUpdateAppCollaborators({
-      tmbIds,
+  const onUpdateCollaborators = ({
+    members,
+    groups,
+    orgs,
+    permission
+  }: {
+    members?: string[];
+    groups?: string[];
+    orgs?: string[];
+    permission: PermissionValueType;
+  }) =>
+    postUpdateAppCollaborators({
+      members,
+      groups,
       permission,
+      orgs,
       appId: appDetail._id
     });
-  };
 
-  const onDelCollaborator = async (tmbId: string) => {
-    await deleteAppCollaborators({
+  const onDelCollaborator = async (
+    props: RequireOnlyOne<{ tmbId: string; groupId: string; orgId: string }>
+  ) =>
+    deleteAppCollaborators({
       appId: appDetail._id,
-      tmbId
+      ...props
     });
-  };
 
-  const { runAsync: resumeInheritPermission } = useRequest2(
-    () => resumeInheritPer(appDetail._id),
-    // () => putAppById(appDetail._id, { inheritPermission: true }),
-    {
-      errorToast: t('common:resume_failed'),
-      onSuccess: () => {
-        reloadApp();
-      }
+  const { runAsync: resumeInheritPermission } = useRequest2(() => resumeInheritPer(appDetail._id), {
+    errorToast: t('common:resume_failed'),
+    onSuccess: () => {
+      reloadApp();
     }
-  );
+  });
 
   return (
     <MyModal
@@ -204,26 +185,19 @@ const InfoModal = ({ onClose }: { onClose: () => void }) => {
                 <ResumeInherit onResume={resumeInheritPermission} />
               </Box>
             )}
-            <Box mt="4">
-              <Box fontSize={'sm'}>{t('common:permission.Default permission')}</Box>
-              <DefaultPermissionList
-                mt="2"
-                per={appDetail.defaultPermission}
-                defaultPer={AppDefaultPermissionVal}
-                isInheritPermission={appDetail.inheritPermission}
-                onChange={(v) => {
-                  setValue('defaultPermission', v);
-                  return handleSubmit((data) => saveSubmitSuccess(data), saveSubmitError)();
-                }}
-                hasParent={!!appDetail.parentId}
-              />
-            </Box>
             <Box mt={6}>
               <CollaboratorContextProvider
                 permission={appDetail.permission}
                 onGetCollaboratorList={() => getCollaboratorList(appDetail._id)}
                 permissionList={AppPermissionList}
-                onUpdateCollaborators={onUpdateCollaborators}
+                onUpdateCollaborators={async (props) =>
+                  onUpdateCollaborators({
+                    permission: props.permission,
+                    members: props.members,
+                    groups: props.groups,
+                    orgs: props.orgs
+                  })
+                }
                 onDelOneCollaborator={onDelCollaborator}
                 refreshDeps={[appDetail.inheritPermission]}
                 isInheritPermission={appDetail.inheritPermission}
@@ -277,7 +251,15 @@ const InfoModal = ({ onClose }: { onClose: () => void }) => {
         </Button>
       </ModalFooter>
 
-      <File onSelect={onSelectFile} />
+      <File
+        onSelect={(e) =>
+          onSelectImage(e, {
+            maxH: 300,
+            maxW: 300,
+            callback: (e) => setValue('avatar', e)
+          })
+        }
+      />
     </MyModal>
   );
 };

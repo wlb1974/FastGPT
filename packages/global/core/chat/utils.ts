@@ -30,7 +30,8 @@ export const getChatTitleFromChatMessage = (message?: ChatItemType, defaultValue
 // Keep the first n and last n characters
 export const getHistoryPreview = (
   completeMessages: ChatItemType[],
-  size = 100
+  size = 100,
+  useVision = false
 ): {
   obj: `${ChatRoleEnum}`;
   value: string;
@@ -48,7 +49,8 @@ export const getHistoryPreview = (
           item.value
             ?.map((item) => {
               if (item?.text?.content) return item?.text?.content;
-              if (item.file?.type === 'image') return 'Input an image';
+              if (item.file?.type === 'image' && useVision)
+                return `![Input an image](${item.file.url.slice(0, 100)}...)`;
               return '';
             })
             .filter(Boolean)
@@ -76,11 +78,15 @@ export const getHistoryPreview = (
 };
 
 export const filterPublicNodeResponseData = ({
-  flowResponses = []
+  flowResponses = [],
+  responseDetail = false
 }: {
   flowResponses?: ChatHistoryItemResType[];
+  responseDetail?: boolean;
 }) => {
-  const filedList = ['quoteList', 'moduleType', 'pluginOutput'];
+  const filedList = responseDetail
+    ? ['quoteList', 'moduleType', 'pluginOutput', 'runningTime']
+    : ['moduleType', 'pluginOutput', 'runningTime'];
   const filterModuleTypeList: any[] = [
     FlowNodeTypeEnum.pluginModule,
     FlowNodeTypeEnum.datasetSearchNode,
@@ -95,7 +101,7 @@ export const filterPublicNodeResponseData = ({
       for (let key in item) {
         if (key === 'toolDetail' || key === 'pluginDetail') {
           // @ts-ignore
-          obj[key] = filterPublicNodeResponseData({ flowResponses: item[key] });
+          obj[key] = filterPublicNodeResponseData({ flowResponses: item[key], responseDetail });
         } else if (filedList.includes(key)) {
           // @ts-ignore
           obj[key] = item[key];
@@ -142,4 +148,30 @@ export const getChatSourceByPublishChannel = (publishChannel: PublishChannelEnum
     default:
       return ChatSourceEnum.online;
   }
+};
+
+/* 
+  Merge chat responseData
+  1. Same tool mergeSignId (Interactive tool node)
+*/
+export const mergeChatResponseData = (responseDataList: ChatHistoryItemResType[]) => {
+  let lastResponse: ChatHistoryItemResType | undefined = undefined;
+
+  return responseDataList.reduce<ChatHistoryItemResType[]>((acc, curr) => {
+    if (lastResponse && lastResponse.mergeSignId && curr.mergeSignId === lastResponse.mergeSignId) {
+      // 替换 lastResponse
+      const concatResponse: ChatHistoryItemResType = {
+        ...curr,
+        runningTime: +((lastResponse.runningTime || 0) + (curr.runningTime || 0)).toFixed(2),
+        totalPoints: (lastResponse.totalPoints || 0) + (curr.totalPoints || 0),
+        childTotalPoints: (lastResponse.childTotalPoints || 0) + (curr.childTotalPoints || 0),
+        toolCallTokens: (lastResponse.toolCallTokens || 0) + (curr.toolCallTokens || 0),
+        toolDetail: [...(lastResponse.toolDetail || []), ...(curr.toolDetail || [])]
+      };
+      return [...acc.slice(0, -1), concatResponse];
+    } else {
+      lastResponse = curr;
+      return [...acc, curr];
+    }
+  }, []);
 };

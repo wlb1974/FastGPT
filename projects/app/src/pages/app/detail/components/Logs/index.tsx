@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Flex,
   Box,
@@ -13,7 +13,7 @@ import {
   ModalBody,
   HStack
 } from '@chakra-ui/react';
-import Avatar from '@fastgpt/web/components/common/Avatar';
+import UserBox from '@fastgpt/web/components/common/UserBox';
 import MyIcon from '@fastgpt/web/components/common/Icon';
 import { useTranslation } from 'next-i18next';
 import { getAppChatLogs } from '@/web/core/app/api';
@@ -30,8 +30,7 @@ import { cardStyles } from '../constants';
 
 import dynamic from 'next/dynamic';
 import { useSystem } from '@fastgpt/web/hooks/useSystem';
-import { useUserStore } from '@/web/support/user/useUserStore';
-import Tag from '@fastgpt/web/components/common/Tag';
+
 const DetailLogsModal = dynamic(() => import('./DetailLogsModal'));
 
 const Logs = () => {
@@ -39,17 +38,11 @@ const Logs = () => {
   const { isPc } = useSystem();
 
   const appId = useContextSelector(AppContext, (v) => v.appId);
-  const { teamMembers, loadAndGetTeamMembers } = useUserStore();
-
-  useEffect(() => {
-    loadAndGetTeamMembers();
-  }, []);
 
   const [dateRange, setDateRange] = useState<DateRangeType>({
     from: addDays(new Date(), -7),
     to: new Date()
   });
-
   const {
     isOpen: isOpenMarkDesc,
     onOpen: onOpenMarkDesc,
@@ -62,8 +55,7 @@ const Logs = () => {
     Pagination,
     getData,
     pageNum
-  } = usePagination({
-    api: getAppChatLogs,
+  } = usePagination(getAppChatLogs, {
     pageSize: 20,
     params: {
       appId,
@@ -129,23 +121,16 @@ const Logs = () => {
                   onClick={() => setDetailLogsId(item.id)}
                 >
                   <Td>
-                    <Box>{t(ChatSourceMap[item.source]?.name || ('UnKnow' as any))}</Box>
+                    {/* @ts-ignore */}
+                    <Box>{t(ChatSourceMap[item.source]?.name) || item.source}</Box>
                     <Box color={'myGray.500'}>{dayjs(item.time).format('YYYY/MM/DD HH:mm')}</Box>
                   </Td>
                   <Td>
                     <Box>
-                      {item.source === 'share' ? (
+                      {!!item.outLinkUid ? (
                         item.outLinkUid
                       ) : (
-                        <Tag key={item._id} type={'fill'} colorSchema="white">
-                          <Avatar
-                            src={teamMembers.find((v) => v.tmbId === item.tmbId)?.avatar}
-                            w="1.25rem"
-                          />
-                          <Box fontSize={'sm'} ml={1}>
-                            {teamMembers.find((v) => v.tmbId === item.tmbId)?.memberName}
-                          </Box>
-                        </Tag>
+                        <UserBox sourceMember={item.sourceMember} />
                       )}
                     </Box>
                   </Td>

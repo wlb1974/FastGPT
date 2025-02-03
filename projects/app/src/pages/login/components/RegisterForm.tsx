@@ -1,7 +1,7 @@
 import React, { Dispatch } from 'react';
 import { FormControl, Box, Input, Button } from '@chakra-ui/react';
 import { useForm } from 'react-hook-form';
-import { LoginPageTypeEnum } from '@/web/support/user/login/constants';
+import { LoginPageTypeEnum, PasswordRule } from '@/web/support/user/login/constants';
 import { postRegister } from '@/web/support/user/api';
 import { useSendCode } from '@/web/support/user/hooks/useSendCode';
 import type { ResLogin } from '@/global/support/api/userRes';
@@ -50,7 +50,18 @@ const RegisterForm = ({ setPageType, loginSuccess }: Props) => {
           username,
           code,
           password,
-          inviterId: localStorage.getItem('inviterId') || undefined
+          inviterId: localStorage.getItem('inviterId') || undefined,
+          bd_vid: sessionStorage.getItem('bd_vid') || undefined,
+          fastgpt_sem: (() => {
+            try {
+              return sessionStorage.getItem('fastgpt_sem')
+                ? JSON.parse(sessionStorage.getItem('fastgpt_sem')!)
+                : undefined;
+            } catch {
+              return undefined;
+            }
+          })(),
+          sourceDomain: sessionStorage.getItem('sourceDomain') || undefined
         })
       );
 
@@ -76,6 +87,18 @@ const RegisterForm = ({ setPageType, loginSuccess }: Props) => {
       refreshDeps: [loginSuccess, t, toast]
     }
   );
+  const onSubmitErr = (err: Record<string, any>) => {
+    const val = Object.values(err)[0];
+    if (!val) return;
+    if (val.message) {
+      toast({
+        status: 'warning',
+        title: val.message,
+        duration: 3000,
+        isClosable: true
+      });
+    }
+  };
 
   const placeholder = feConfigs?.register_method
     ?.map((item) => {
@@ -90,20 +113,21 @@ const RegisterForm = ({ setPageType, loginSuccess }: Props) => {
 
   return (
     <>
-      <Box fontWeight={'bold'} fontSize={'2xl'} textAlign={'center'}>
+      <Box fontWeight={'medium'} fontSize={'lg'} textAlign={'center'} color={'myGray.900'}>
         {t('user:register.register_account', { account: feConfigs?.systemTitle })}
       </Box>
       <Box
-        mt={'42px'}
+        mt={9}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey && !requesting) {
-            handleSubmit(onclickRegister)();
+            handleSubmit(onclickRegister, onSubmitErr)();
           }
         }}
       >
         <FormControl isInvalid={!!errors.username}>
           <Input
             bg={'myGray.50'}
+            size={'lg'}
             placeholder={placeholder}
             {...register('username', {
               required: t('user:password.email_phone_void'),
@@ -123,6 +147,7 @@ const RegisterForm = ({ setPageType, loginSuccess }: Props) => {
           position={'relative'}
         >
           <Input
+            size={'lg'}
             bg={'myGray.50'}
             flex={1}
             maxLength={8}
@@ -136,17 +161,14 @@ const RegisterForm = ({ setPageType, loginSuccess }: Props) => {
         <FormControl mt={6} isInvalid={!!errors.password}>
           <Input
             bg={'myGray.50'}
+            size={'lg'}
             type={'password'}
-            placeholder={t('user:password.new_password')}
+            placeholder={t('login:password_tip')}
             {...register('password', {
-              required: t('user:password.password_required'),
-              minLength: {
-                value: 4,
-                message: t('user:password.password_condition')
-              },
-              maxLength: {
-                value: 20,
-                message: t('user:password.password_condition')
+              required: true,
+              pattern: {
+                value: PasswordRule,
+                message: t('login:password_tip')
               }
             })}
           ></Input>
@@ -154,30 +176,35 @@ const RegisterForm = ({ setPageType, loginSuccess }: Props) => {
         <FormControl mt={6} isInvalid={!!errors.password2}>
           <Input
             bg={'myGray.50'}
+            size={'lg'}
             type={'password'}
             placeholder={t('user:password.confirm')}
             {...register('password2', {
               validate: (val) =>
                 getValues('password') === val ? true : t('user:password.not_match')
             })}
-          ></Input>
+          />
         </FormControl>
         <Button
           type="submit"
-          mt={6}
+          mt={12}
           w={'100%'}
           size={['md', 'md']}
+          rounded={['md', 'md']}
+          h={[10, 10]}
+          fontWeight={['medium', 'medium']}
           colorScheme="blue"
           isLoading={requesting}
-          onClick={handleSubmit(onclickRegister)}
+          onClick={handleSubmit(onclickRegister, onSubmitErr)}
         >
           {t('user:register.confirm')}
         </Button>
         <Box
           float={'right'}
-          fontSize="sm"
-          mt={2}
+          fontSize="mini"
+          mt={3}
           mb={'50px'}
+          fontWeight={'medium'}
           color={'primary.700'}
           cursor={'pointer'}
           _hover={{ textDecoration: 'underline' }}

@@ -8,12 +8,6 @@ import {
   Box,
   Button,
   Flex,
-  Input,
-  NumberDecrementStepper,
-  NumberIncrementStepper,
-  NumberInput,
-  NumberInputField,
-  NumberInputStepper,
   Textarea
 } from '@chakra-ui/react';
 import { ChatItemValueTypeEnum } from '@fastgpt/global/core/chat/constants';
@@ -31,19 +25,24 @@ import {
   UserSelectInteractive
 } from '@fastgpt/global/core/workflow/template/system/interactive/type';
 import { isEqual } from 'lodash';
-import { onSendPrompt } from '../ChatContainer/useChat';
 import FormLabel from '@fastgpt/web/components/common/MyBox/FormLabel';
 import QuestionTip from '@fastgpt/web/components/common/MyTooltip/QuestionTip';
 import { FlowNodeInputTypeEnum } from '@fastgpt/global/core/workflow/node/constant';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from 'next-i18next';
 import { Controller, useForm } from 'react-hook-form';
 import MySelect from '@fastgpt/web/components/common/MySelect';
+import MyTextarea from '@/components/common/Textarea/MyTextarea';
+import MyNumberInput from '@fastgpt/web/components/common/Input/NumberInput';
+import { SendPromptFnType } from '../ChatContainer/ChatBox/type';
+import { eventBus, EventNameEnum } from '@/web/common/utils/eventbus';
 
 type props = {
   value: UserChatItemValueItemType | AIChatItemValueItemType;
   isLastResponseValue: boolean;
   isChatting: boolean;
 };
+
+const onSendPrompt: SendPromptFnType = (e) => eventBus.emit(EventNameEnum.sendQuestion, e);
 
 const RenderText = React.memo(function RenderText({
   showAnimation,
@@ -85,7 +84,7 @@ const RenderTool = React.memo(
           })();
 
           return (
-            <Accordion key={tool.id} allowToggle>
+            <Accordion key={tool.id} allowToggle _notLast={{ mb: 2 }}>
               <AccordionItem borderTop={'none'} borderBottom={'none'}>
                 <AccordionButton
                   w={'auto'}
@@ -213,6 +212,7 @@ const RenderUserFormInteractive = React.memo(function RenderFormInput({
 
   return (
     <Flex flexDirection={'column'} gap={2} w={'250px'}>
+      {interactive.params.description && <Markdown source={interactive.params.description} />}
       {interactive.params.inputForm?.map((input) => (
         <Box key={input.label}>
           <Flex mb={1} alignItems={'center'}>
@@ -220,13 +220,15 @@ const RenderUserFormInteractive = React.memo(function RenderFormInput({
             {input.description && <QuestionTip ml={1} label={input.description} />}
           </Flex>
           {input.type === FlowNodeInputTypeEnum.input && (
-            <Input
-              bg={'white'}
-              maxLength={input.maxLength}
+            <MyTextarea
               isDisabled={interactive.params.submitted}
               {...register(input.label, {
                 required: input.required
               })}
+              bg={'white'}
+              autoHeight
+              minH={40}
+              maxH={100}
             />
           )}
           {input.type === FlowNodeInputTypeEnum.textarea && (
@@ -241,25 +243,15 @@ const RenderUserFormInteractive = React.memo(function RenderFormInput({
             />
           )}
           {input.type === FlowNodeInputTypeEnum.numberInput && (
-            <NumberInput
-              step={1}
+            <MyNumberInput
               min={input.min}
               max={input.max}
               isDisabled={interactive.params.submitted}
               bg={'white'}
-              rounded={'md'}
-            >
-              <NumberInputField
-                bg={'white'}
-                {...register(input.label, {
-                  required: input.required
-                })}
-              />
-              <NumberInputStepper>
-                <NumberIncrementStepper />
-                <NumberDecrementStepper />
-              </NumberInputStepper>
-            </NumberInput>
+              register={register}
+              name={input.label}
+              isRequired={input.required}
+            />
           )}
           {input.type === FlowNodeInputTypeEnum.select && (
             <Controller

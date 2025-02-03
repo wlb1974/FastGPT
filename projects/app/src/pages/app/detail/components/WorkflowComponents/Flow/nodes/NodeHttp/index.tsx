@@ -49,6 +49,8 @@ import QuestionTip from '@fastgpt/web/components/common/MyTooltip/QuestionTip';
 import { FlowNodeInputTypeEnum } from '@fastgpt/global/core/workflow/node/constant';
 import { getEditorVariables } from '../../../utils';
 import PromptEditor from '@fastgpt/web/components/common/Textarea/PromptEditor';
+import { WorkflowNodeEdgeContext } from '../../../context/workflowInitContext';
+import { useSystemStore } from '@/web/common/system/useSystemStore';
 const CurlImportModal = dynamic(() => import('./CurlImportModal'));
 
 const defaultFormBody = {
@@ -80,8 +82,13 @@ const RenderHttpMethodAndUrl = React.memo(function RenderHttpMethodAndUrl({
 }) {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const onChangeNode = useContextSelector(WorkflowContext, (v) => v.onChangeNode);
 
+  const edges = useContextSelector(WorkflowNodeEdgeContext, (v) => v.edges);
+  const onChangeNode = useContextSelector(WorkflowContext, (v) => v.onChangeNode);
+  const nodeList = useContextSelector(WorkflowContext, (v) => v.nodeList);
+  const { appDetail } = useContextSelector(AppContext, (v) => v);
+
+  const { feConfigs } = useSystemStore();
   const { isOpen: isOpenCurl, onOpen: onOpenCurl, onClose: onCloseCurl } = useDisclosure();
 
   const requestMethods = inputs.find(
@@ -91,19 +98,18 @@ const RenderHttpMethodAndUrl = React.memo(function RenderHttpMethodAndUrl({
     (item) => item.key === NodeInputKeyEnum.httpReqUrl
   ) as FlowNodeInputItemType;
 
-  const onChangeUrl = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onChangeUrl = (value: string) => {
     onChangeNode({
       nodeId,
       type: 'updateInput',
       key: NodeInputKeyEnum.httpReqUrl,
       value: {
         ...requestUrl,
-        value: e.target.value
+        value
       }
     });
   };
-  const onBlurUrl = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
+  const onBlurUrl = (val: string) => {
     // 拆分params和url
     const url = val.split('?')[0];
     const params = val.split('?')[1];
@@ -154,6 +160,25 @@ const RenderHttpMethodAndUrl = React.memo(function RenderHttpMethodAndUrl({
     }
   };
 
+  const variables = useCreation(() => {
+    return getEditorVariables({
+      nodeId,
+      nodeList,
+      edges,
+      appDetail,
+      t
+    });
+  }, [nodeId, nodeList, edges, appDetail, t]);
+
+  const externalProviderWorkflowVariables = useMemo(() => {
+    return (
+      feConfigs?.externalProviderWorkflowVariables?.map((item) => ({
+        key: item.key,
+        label: item.name
+      })) || []
+    );
+  }, [feConfigs?.externalProviderWorkflowVariables]);
+
   return (
     <Box>
       <Box mb={2} display={'flex'} justifyContent={'space-between'}>
@@ -166,7 +191,7 @@ const RenderHttpMethodAndUrl = React.memo(function RenderHttpMethodAndUrl({
       </Box>
       <Flex alignItems={'center'} className="nodrag">
         <MySelect
-          h={'34px'}
+          h={'40px'}
           w={'88px'}
           bg={'white'}
           width={'100%'}
@@ -205,17 +230,29 @@ const RenderHttpMethodAndUrl = React.memo(function RenderHttpMethodAndUrl({
             });
           }}
         />
-        <Input
-          flex={'1 0 0'}
-          ml={2}
-          h={'34px'}
+        <Box
+          w={'full'}
+          border={'1px solid'}
+          borderColor={'myGray.200'}
+          rounded={'md'}
           bg={'white'}
-          value={requestUrl?.value || ''}
-          placeholder={t('common:core.module.input.label.Http Request Url')}
-          fontSize={'xs'}
-          onChange={onChangeUrl}
-          onBlur={onBlurUrl}
-        />
+          ml={2}
+        >
+          <PromptEditor
+            placeholder={
+              t('common:core.module.input.label.Http Request Url') +
+              ', ' +
+              t('common:textarea_variable_picker_tip')
+            }
+            value={requestUrl?.value || ''}
+            variableLabels={variables}
+            variables={externalProviderWorkflowVariables}
+            onBlur={onBlurUrl}
+            onChange={onChangeUrl}
+            minH={40}
+            showOpenModal={false}
+          />
+        </Box>
       </Flex>
 
       {isOpenCurl && <CurlImportModal nodeId={nodeId} inputs={inputs} onClose={onCloseCurl} />}
@@ -232,10 +269,12 @@ export function RenderHttpProps({
 }) {
   const { t } = useTranslation();
   const [selectedTab, setSelectedTab] = useState(TabEnum.params);
+
+  const edges = useContextSelector(WorkflowNodeEdgeContext, (v) => v.edges);
   const nodeList = useContextSelector(WorkflowContext, (v) => v.nodeList);
-  const edges = useContextSelector(WorkflowContext, (v) => v.edges);
 
   const { appDetail } = useContextSelector(AppContext, (v) => v);
+  const { feConfigs } = useSystemStore();
 
   const requestMethods = inputs.find((item) => item.key === NodeInputKeyEnum.httpMethod)?.value;
   const params = inputs.find((item) => item.key === NodeInputKeyEnum.httpParams);
@@ -249,6 +288,15 @@ export function RenderHttpProps({
   const headersLength = headers?.value?.length || 0;
 
   // get variable
+  const externalProviderWorkflowVariables = useMemo(() => {
+    return (
+      feConfigs?.externalProviderWorkflowVariables?.map((item) => ({
+        key: item.key,
+        label: item.name
+      })) || []
+    );
+  }, [feConfigs?.externalProviderWorkflowVariables]);
+
   const variables = useCreation(() => {
     return getEditorVariables({
       nodeId,
@@ -257,7 +305,7 @@ export function RenderHttpProps({
       appDetail,
       t
     });
-  }, [nodeList, edges, inputs, t]);
+  }, [nodeId, nodeList, edges, appDetail, t]);
 
   const variableText = useMemo(() => {
     return variables
@@ -271,13 +319,15 @@ export function RenderHttpProps({
         params,
         headers,
         jsonBody,
-        variables
+        variables,
+        externalProviderWorkflowVariables
       }),
-    [headers, jsonBody, params, variables]
+    [externalProviderWorkflowVariables, headers, jsonBody, params, variables]
   );
 
   const Render = useMemo(() => {
-    const { params, headers, jsonBody, variables } = JSON.parse(stringifyVariables);
+    const { params, headers, jsonBody, variables, externalProviderWorkflowVariables } =
+      JSON.parse(stringifyVariables);
     return (
       <Box>
         <Flex alignItems={'center'} mb={2} fontWeight={'medium'} color={'myGray.600'}>
@@ -320,18 +370,31 @@ export function RenderHttpProps({
             headers &&
             jsonBody &&
             {
-              [TabEnum.params]: <RenderForm nodeId={nodeId} input={params} variables={variables} />,
+              [TabEnum.params]: (
+                <RenderForm
+                  nodeId={nodeId}
+                  input={params}
+                  variables={variables}
+                  externalProviderWorkflowVariables={externalProviderWorkflowVariables}
+                />
+              ),
               [TabEnum.body]: (
                 <RenderBody
                   nodeId={nodeId}
                   variables={variables}
+                  externalProviderWorkflowVariables={externalProviderWorkflowVariables}
                   jsonBody={jsonBody}
                   formBody={formBody}
                   typeInput={contentType}
                 />
               ),
               [TabEnum.headers]: (
-                <RenderForm nodeId={nodeId} input={headers} variables={variables} />
+                <RenderForm
+                  nodeId={nodeId}
+                  input={headers}
+                  variables={variables}
+                  externalProviderWorkflowVariables={externalProviderWorkflowVariables}
+                />
               )
             }[selectedTab]}
         </Box>
@@ -409,11 +472,16 @@ const RenderHttpTimeout = ({
 const RenderForm = ({
   nodeId,
   input,
-  variables
+  variables,
+  externalProviderWorkflowVariables
 }: {
   nodeId: string;
   input: FlowNodeInputItemType;
   variables: EditorVariableLabelPickerType[];
+  externalProviderWorkflowVariables: {
+    key: string;
+    label: string;
+  }[];
 }) => {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -520,7 +588,7 @@ const RenderForm = ({
                       placeholder={t('common:textarea_variable_picker_tip')}
                       value={item.key}
                       variableLabels={variables}
-                      variables={variables}
+                      variables={externalProviderWorkflowVariables}
                       onBlur={(val) => {
                         handleKeyChange(index, val);
 
@@ -538,7 +606,7 @@ const RenderForm = ({
                       <HttpInput
                         placeholder={t('common:textarea_variable_picker_tip')}
                         value={item.value}
-                        variables={variables}
+                        variables={externalProviderWorkflowVariables}
                         variableLabels={variables}
                         onBlur={(val) => {
                           setList((prevList) =>
@@ -570,7 +638,16 @@ const RenderForm = ({
         </TableContainer>
       </Box>
     );
-  }, [handleAddNewProps, handleKeyChange, input.key, list, t, updateTrigger, variables]);
+  }, [
+    externalProviderWorkflowVariables,
+    handleAddNewProps,
+    handleKeyChange,
+    input.key,
+    list,
+    t,
+    updateTrigger,
+    variables
+  ]);
 
   return Render;
 };
@@ -579,13 +656,18 @@ const RenderBody = ({
   jsonBody,
   formBody,
   typeInput,
-  variables
+  variables,
+  externalProviderWorkflowVariables
 }: {
   nodeId: string;
   jsonBody: FlowNodeInputItemType;
   formBody: FlowNodeInputItemType;
   typeInput: FlowNodeInputItemType | undefined;
   variables: EditorVariableLabelPickerType[];
+  externalProviderWorkflowVariables: {
+    key: string;
+    label: string;
+  }[];
 }) => {
   const { t } = useTranslation();
   const onChangeNode = useContextSelector(WorkflowContext, (v) => v.onChangeNode);
@@ -657,29 +739,32 @@ const RenderBody = ({
         </Flex>
         {(typeInput?.value === ContentTypes.formData ||
           typeInput?.value === ContentTypes.xWwwFormUrlencoded) && (
-          <RenderForm nodeId={nodeId} input={formBody} variables={variables} />
+          <RenderForm
+            nodeId={nodeId}
+            input={formBody}
+            variables={variables}
+            externalProviderWorkflowVariables={externalProviderWorkflowVariables}
+          />
         )}
         {typeInput?.value === ContentTypes.json && (
-          <JSONEditor
+          <PromptEditor
             bg={'white'}
-            defaultHeight={200}
-            resize
+            showOpenModal={false}
+            variableLabels={variables}
+            minH={200}
             value={jsonBody.value}
-            placeholder={t('common:core.module.template.http body placeholder')}
+            placeholder={t('workflow:http_body_placeholder')}
             onChange={(e) => {
-              startSts(() => {
-                onChangeNode({
-                  nodeId,
-                  type: 'updateInput',
-                  key: jsonBody.key,
-                  value: {
-                    ...jsonBody,
-                    value: e
-                  }
-                });
+              onChangeNode({
+                nodeId,
+                type: 'updateInput',
+                key: jsonBody.key,
+                value: {
+                  ...jsonBody,
+                  value: e
+                }
               });
             }}
-            variables={variables}
           />
         )}
         {(typeInput?.value === ContentTypes.xml || typeInput?.value === ContentTypes.raw) && (
@@ -687,26 +772,33 @@ const RenderBody = ({
             value={jsonBody.value}
             placeholder={t('common:textarea_variable_picker_tip')}
             onChange={(e) => {
-              startSts(() => {
-                onChangeNode({
-                  nodeId,
-                  type: 'updateInput',
-                  key: jsonBody.key,
-                  value: {
-                    ...jsonBody,
-                    value: e
-                  }
-                });
+              onChangeNode({
+                nodeId,
+                type: 'updateInput',
+                key: jsonBody.key,
+                value: {
+                  ...jsonBody,
+                  value: e
+                }
               });
             }}
             showOpenModal={false}
             variableLabels={variables}
-            h={200}
+            minH={200}
           />
         )}
       </Box>
     );
-  }, [typeInput?.value, t, nodeId, formBody, variables, jsonBody, onChangeNode]);
+  }, [
+    typeInput?.value,
+    nodeId,
+    formBody,
+    variables,
+    externalProviderWorkflowVariables,
+    jsonBody,
+    t,
+    onChangeNode
+  ]);
   return Render;
 };
 

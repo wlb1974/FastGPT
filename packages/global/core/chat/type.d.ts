@@ -15,7 +15,8 @@ import type { AppSchema as AppType } from '@fastgpt/global/core/app/type.d';
 import { DatasetSearchModeEnum } from '../dataset/constants';
 import { DispatchNodeResponseType } from '../workflow/runtime/type.d';
 import { ChatBoxInputType } from '../../../../projects/app/src/components/core/chat/ChatContainer/ChatBox/type';
-import { InteractiveNodeResponseItemType } from '../workflow/template/system/interactive/type';
+import { WorkflowInteractiveResponseType } from '../workflow/template/system/interactive/type';
+import { FlowNodeInputItemType } from '../workflow/type/io';
 
 export type ChatSchema = {
   _id: string;
@@ -35,6 +36,7 @@ export type ChatSchema = {
   variableList?: VariableItemType[];
   welcomeText?: string;
   variables: Record<string, any>;
+  pluginInputs?: FlowNodeInputItemType[];
   metadata?: Record<string, any>;
 };
 
@@ -56,6 +58,7 @@ export type UserChatItemValueItemType = {
 export type UserChatItemType = {
   obj: ChatRoleEnum.Human;
   value: UserChatItemValueItemType[];
+  hideInUI?: boolean;
 };
 export type SystemChatItemValueItemType = {
   type: ChatItemValueTypeEnum.text;
@@ -73,7 +76,7 @@ export type AIChatItemValueItemType = {
     content: string;
   };
   tools?: ToolModuleResponseItemType[];
-  interactive?: InteractiveNodeResponseItemType;
+  interactive?: WorkflowInteractiveResponseType;
 };
 export type AIChatItemType = {
   obj: ChatRoleEnum.AI;
@@ -100,7 +103,7 @@ export type ChatItemSchema = (UserChatItemType | SystemChatItemType | AIChatItem
 };
 
 export type AdminFbkType = {
-  dataId: string;
+  feedbackDataId: string;
   datasetId: string;
   collectionId: string;
   q: string;
@@ -126,6 +129,7 @@ export type ChatSiteItemType = (UserChatItemType | SystemChatItemType | AIChatIt
   moduleName?: string;
   ttsBuffer?: Uint8Array;
   responseData?: ChatHistoryItemResType[];
+  time?: Date;
 } & ChatBoxInputType &
   ResponseTagItemType;
 

@@ -1,14 +1,15 @@
 import { ChatCompletionRequestMessageRoleEnum } from '../../ai/constants';
-import { NodeInputKeyEnum, NodeOutputKeyEnum } from '../constants';
+import { NodeInputKeyEnum, NodeOutputKeyEnum, WorkflowIOValueTypeEnum } from '../constants';
 import { FlowNodeTypeEnum } from '../node/constant';
 import { StoreNodeItemType } from '../type/node';
 import { StoreEdgeItemType } from '../type/edge';
 import { RuntimeEdgeItemType, RuntimeNodeItemType } from './type';
 import { VARIABLE_NODE_ID } from '../constants';
-import { isReferenceValue } from '../utils';
-import { FlowNodeOutputItemType, ReferenceValueProps } from '../type/io';
+import { isValidReferenceValueFormat } from '../utils';
+import { FlowNodeOutputItemType, ReferenceValueType } from '../type/io';
 import { ChatItemType, NodeOutputItemType } from '../../../core/chat/type';
 import { ChatItemValueTypeEnum, ChatRoleEnum } from '../../../core/chat/constants';
+import { replaceVariable, valToStr } from '../../../common/string/tools';
 
 export const getMaxHistoryLimitFromNodes = (nodes: StoreNodeItemType[]): number => {
   let limit = 10;
@@ -34,7 +35,7 @@ export const getMaxHistoryLimitFromNodes = (nodes: StoreNodeItemType[]): number 
   2. Check that the workflow starts at the interaction node
 */
 export const getLastInteractiveValue = (histories: ChatItemType[]) => {
-  const lastAIMessage = histories.findLast((item) => item.obj === ChatRoleEnum.AI);
+  const lastAIMessage = [...histories].reverse().find((item) => item.obj === ChatRoleEnum.AI);
 
   if (lastAIMessage) {
     const lastValue = lastAIMessage.value[lastAIMessage.value.length - 1];
@@ -69,7 +70,7 @@ export const initWorkflowEdgeStatus = (
   histories?: ChatItemType[]
 ): RuntimeEdgeItemType[] => {
   // If there is a history, use the last interactive value
-  if (!!histories) {
+  if (histories && histories.length > 0) {
     const memoryEdges = getLastInteractiveValue(histories)?.memoryEdges;
 
     if (memoryEdges && memoryEdges.length > 0) {
@@ -90,7 +91,7 @@ export const getWorkflowEntryNodeIds = (
   histories?: ChatItemType[]
 ) => {
   // If there is a history, use the last interactive entry node
-  if (!!histories) {
+  if (histories && histories.length > 0) {
     const entryNodeIds = getLastInteractiveValue(histories)?.entryNodeIds;
 
     if (Array.isArray(entryNodeIds) && entryNodeIds.length > 0) {
@@ -124,7 +125,8 @@ export const storeNodes2RuntimeNodes = (
         isEntry: entryNodeIds.includes(node.nodeId),
         inputs: node.inputs,
         outputs: node.outputs,
-        pluginId: node.pluginId
+        pluginId: node.pluginId,
+        version: node.version
       };
     }) || []
   );
@@ -224,35 +226,132 @@ export const checkNodeRunStatus = ({
   return 'wait';
 };
 
+/* 
+  Get the value of the reference variable/node output
+  1. [string,string]
+  2. [string,string][]
+*/
 export const getReferenceVariableValue = ({
   value,
   nodes,
   variables
 }: {
-  value: ReferenceValueProps;
+  value?: ReferenceValueType;
   nodes: RuntimeNodeItemType[];
   variables: Record<string, any>;
 }) => {
-  if (!isReferenceValue(value)) {
-    return value;
+  if (!value) return value;
+
+  // handle single reference value
+  if (isValidReferenceValueFormat(value)) {
+    const sourceNodeId = value[0];
+    const outputId = value[1];
+
+    if (sourceNodeId === VARIABLE_NODE_ID) {
+      if (!outputId) return undefined;
+      return variables[outputId];
+    }
+
+    // 避免 value 刚好就是二个元素的字符串数组
+    const node = nodes.find((node) => node.nodeId === sourceNodeId);
+    if (!node) {
+      return value;
+    }
+
+    return node.outputs.find((output) => output.id === outputId)?.value;
   }
-  const sourceNodeId = value[0];
-  const outputId = value[1];
 
-  if (sourceNodeId === VARIABLE_NODE_ID && outputId) {
-    return variables[outputId];
+  // handle reference array
+  if (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((item) => isValidReferenceValueFormat(item))
+  ) {
+    const result = value.map<any>((val) => {
+      return getReferenceVariableValue({
+        value: val,
+        nodes,
+        variables
+      });
+    });
+
+    return result.flat().filter((item) => item !== undefined);
   }
 
-  const node = nodes.find((node) => node.nodeId === sourceNodeId);
-
-  if (!node) {
-    return undefined;
-  }
-
-  const outputValue = node.outputs.find((output) => output.id === outputId)?.value;
-
-  return outputValue;
+  return value;
 };
+
+export const formatVariableValByType = (val: any, valueType?: WorkflowIOValueTypeEnum) => {
+  if (!valueType) return val;
+  // Value type check, If valueType invalid, return undefined
+  if (valueType.startsWith('array') && !Array.isArray(val)) return undefined;
+  if (valueType === WorkflowIOValueTypeEnum.boolean) return Boolean(val);
+  if (valueType === WorkflowIOValueTypeEnum.number) return Number(val);
+  if (valueType === WorkflowIOValueTypeEnum.string) {
+    if (val === undefined) return 'undefined';
+    if (val === null) return 'null';
+    return typeof val === 'object' ? JSON.stringify(val) : String(val);
+  }
+  if (
+    [
+      WorkflowIOValueTypeEnum.object,
+      WorkflowIOValueTypeEnum.chatHistory,
+      WorkflowIOValueTypeEnum.datasetQuote,
+      WorkflowIOValueTypeEnum.selectApp,
+      WorkflowIOValueTypeEnum.selectDataset
+    ].includes(valueType) &&
+    typeof val !== 'object'
+  )
+    return undefined;
+
+  return val;
+};
+// replace {{$xx.xx$}} variables for text
+export function replaceEditorVariable({
+  text,
+  nodes,
+  variables
+}: {
+  text: any;
+  nodes: RuntimeNodeItemType[];
+  variables: Record<string, any>; // global variables
+}) {
+  if (typeof text !== 'string') return text;
+
+  text = replaceVariable(text, variables);
+
+  const variablePattern = /\{\{\$([^.]+)\.([^$]+)\$\}\}/g;
+  const matches = [...text.matchAll(variablePattern)];
+  if (matches.length === 0) return text;
+
+  matches.forEach((match) => {
+    const nodeId = match[1];
+    const id = match[2];
+
+    const variableVal = (() => {
+      if (nodeId === VARIABLE_NODE_ID) {
+        return variables[id];
+      }
+      // Find upstream node input/output
+      const node = nodes.find((node) => node.nodeId === nodeId);
+      if (!node) return;
+
+      const output = node.outputs.find((output) => output.id === id);
+      if (output) return formatVariableValByType(output.value, output.valueType);
+
+      // Use the node's input as the variable value(Example: HTTP data will reference its own dynamic input)
+      const input = node.inputs.find((input) => input.key === id);
+      if (input) return getReferenceVariableValue({ value: input.value, nodes, variables });
+    })();
+
+    const formatVal = valToStr(variableVal);
+
+    const regex = new RegExp(`\\{\\{\\$(${nodeId}\\.${id})\\$\\}\\}`, 'g');
+    text = text.replace(regex, () => formatVal);
+  });
+
+  return text || '';
+}
 
 export const textAdaptGptResponse = ({
   text,

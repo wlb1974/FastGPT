@@ -22,22 +22,11 @@ weight: 853
 **新例子**
 
 ```bash
-curl --location --request POST 'https://api.tryfastgpt.ai/api/support/wallet/usage/createTrainingUsage' \
+curl --location --request POST 'http://localhost:3000/api/support/wallet/usage/createTrainingUsage' \
 --header 'Authorization: Bearer {{apikey}}' \
 --header 'Content-Type: application/json' \
 --data-raw '{
     "datasetId": "知识库 ID",
-    "name": "可选，自定义订单名称，例如：文档训练-fastgpt.docx"
-}'
-```
-
-**x例子**
-
-```bash
-curl --location --request POST 'https://api.tryfastgpt.ai/api/support/wallet/bill/createTrainingBill' \
---header 'Authorization: Bearer {{apikey}}' \
---header 'Content-Type: application/json' \
---data-raw '{
     "name": "可选，自定义订单名称，例如：文档训练-fastgpt.docx"
 }'
 ```
@@ -418,9 +407,7 @@ curl --location --request POST 'http://localhost:3000/api/core/dataset/collectio
 - parentId： 父级ID，不填则默认为根目录
 - name: 集合名称（必填）
 - metadata： 元数据（暂时没啥用）
-- trainingType:（必填）
-  - chunk: 按文本长度进行分割
-  - qa: QA拆分
+- trainingType: 训练模式（必填）
 - chunkSize: 每个 chunk 的长度（可选）. chunk模式:100~3000; qa模式: 4000~模型最大token（16k模型通常建议不超过10000）
 - chunkSplitter: 自定义最高优先分割符号（可选）
 - qaPrompt: qa拆分自定义提示词（可选）
@@ -494,9 +481,7 @@ curl --location --request POST 'http://localhost:3000/api/core/dataset/collectio
 - datasetId: 知识库的ID(必填)
 - parentId： 父级ID，不填则默认为根目录
 - metadata.webPageSelector: 网页选择器，用于指定网页中的哪个元素作为文本(可选)
-- trainingType:（必填）
-  - chunk: 按文本长度进行分割
-  - qa: QA拆分
+- trainingType:训练模式（必填）
 - chunkSize: 每个 chunk 的长度（可选）. chunk模式:100~3000; qa模式: 4000~模型最大token（16k模型通常建议不超过10000）
 - chunkSplitter: 自定义最高优先分割符号（可选）
 - qaPrompt: qa拆分自定义提示词（可选）
@@ -516,7 +501,13 @@ data 为集合的 ID。
     "statusText": "",
     "message": "",
     "data": {
-        "collectionId": "65abd0ad9d1448617cba6031"
+        "collectionId": "65abd0ad9d1448617cba6031",
+        "results": {
+            "insertLen": 1,
+            "overToken": [],
+            "repeat": [],
+            "error": []
+        }
     }
 }
 ```
@@ -555,12 +546,86 @@ curl --location --request POST 'http://localhost:3000/api/core/dataset/collectio
 - data: 知识库相关信息（json序列化后传入）
   - datasetId: 知识库的ID(必填)
   - parentId： 父级ID，不填则默认为根目录
-  - trainingType:（必填）
-    - chunk: 按文本长度进行分割
-    - qa: QA拆分
+  - trainingType:训练模式（必填）
   - chunkSize: 每个 chunk 的长度（可选）. chunk模式:100~3000; qa模式: 4000~模型最大token（16k模型通常建议不超过10000）
   - chunkSplitter: 自定义最高优先分割符号（可选）
   - qaPrompt: qa拆分自定义提示词（可选）
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+data 为集合的 ID。
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": {
+        "collectionId": "65abc044e4704bac793fbd81",
+        "results": {
+            "insertLen": 1,
+            "overToken": [],
+            "repeat": [],
+            "error": []
+        }
+    }
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+### 创建一个API集合
+
+传入一个文件的 id，创建一个集合，会读取文件内容进行分割。目前支持：pdf, docx, md, txt, html, csv。
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+使用代码上传时，请注意中文 filename 需要进行 encode 处理，否则容易乱码。
+
+```bash
+curl --location --request POST 'http://localhost:3000/api/core/dataset/collection/create/apiCollection' \
+--header 'Authorization: Bearer fastgpt-xxx' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "name": "A Quick Guide to Building a Discord Bot.pdf",
+    "apiFileId":"A Quick Guide to Building a Discord Bot.pdf",
+
+    "datasetId": "674e9e479c3503c385495027",
+    "parentId": null,
+
+    "trainingType": "chunk",
+    "chunkSize":512,
+    "chunkSplitter":"",
+    "qaPrompt":""
+}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+需要使用 POST form-data 的格式上传。包含 file 和 data 两个字段。
+
+{{% alert icon=" " context="success" %}}
+- name: 集合名，建议就用文件名，必填。
+- apiFileId: 文件的ID，必填。
+- datasetId: 知识库的ID(必填)
+- parentId： 父级ID，不填则默认为根目录
+- trainingType:训练模式（必填）
+- chunkSize: 每个 chunk 的长度（可选）. chunk模式:100~3000; qa模式: 4000~模型最大token（16k模型通常建议不超过10000）
+- chunkSplitter: 自定义最高优先分割符号（可选）
+- qaPrompt: qa拆分自定义提示词（可选）
 {{% /alert %}}
 
 {{< /markdownify >}}
@@ -648,7 +713,12 @@ data 为集合的 ID。
   "message": "",
   "data": {
     "collectionId": "6646fcedfabd823cdc6de746",
-    "insertLen": 3
+    "results": {
+        "insertLen": 1,
+        "overToken": [],
+        "repeat": [],
+        "error": []
+    }
   }
 }
 ```
@@ -663,6 +733,21 @@ data 为集合的 ID。
 {{< tab tabName="请求示例" >}}
 {{< markdownify >}}
 
+**4.8.19+**
+```bash
+curl --location --request POST 'http://localhost:3000/api/core/dataset/collection/listv2' \
+--header 'Authorization: Bearer {{authorization}}' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "offset":0,
+    "pageSize": 10,
+    "datasetId":"6593e137231a2be9c5603ba7",
+    "parentId": null,
+    "searchText":""
+}'
+```
+
+**4.8.19-(不再维护)**
 ```bash
 curl --location --request POST 'http://localhost:3000/api/core/dataset/collection/list' \
 --header 'Authorization: Bearer {{authorization}}' \
@@ -683,7 +768,7 @@ curl --location --request POST 'http://localhost:3000/api/core/dataset/collectio
 {{< markdownify >}}
 
 {{% alert icon=" " context="success" %}}
-- pageNum: 页码（选填）
+- offset: 偏移量
 - pageSize: 每页数量，最大30（选填）
 - datasetId: 知识库的ID(必填)
 - parentId: 父级Id（选填）
@@ -703,9 +788,7 @@ curl --location --request POST 'http://localhost:3000/api/core/dataset/collectio
     "statusText": "",
     "message": "",
     "data": {
-        "pageNum": 1,
-        "pageSize": 10,
-        "data": [
+        "list": [
             {
                 "_id": "6593e137231a2be9c5603ba9",
                 "parentId": null,
@@ -991,7 +1074,7 @@ curl --location --request DELETE 'http://localhost:3000/api/core/dataset/collect
 {{< markdownify >}}
 
 ```bash
-curl --location --request POST 'https://api.tryfastgpt.ai/api/core/dataset/data/pushData' \
+curl --location --request POST 'https://api.fastgpt.in/api/core/dataset/data/pushData' \
 --header 'Authorization: Bearer apikey' \
 --header 'Content-Type: application/json' \
 --data-raw '{
@@ -1028,9 +1111,7 @@ curl --location --request POST 'https://api.tryfastgpt.ai/api/core/dataset/data/
 
 {{% alert icon=" " context="success" %}}
 - collectionId: 集合ID（必填）
-- trainingType:（必填）
-  - chunk: 按文本长度进行分割
-  - qa: QA拆分
+- trainingType:训练模式（必填）
 - prompt: 自定义 QA 拆分提示词，需严格按照模板，建议不要传入。（选填）
 - data：（具体数据）
   - q: 主要数据（必填）
@@ -1093,6 +1174,22 @@ A2:
 {{< tab tabName="请求示例" >}}
 {{< markdownify >}}
 
+**4.8.11+**
+
+```bash
+curl --location --request POST 'http://localhost:3000/api/core/dataset/data/v2/list' \
+--header 'Authorization: Bearer {{authorization}}' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "offset": 0,
+    "pageSize": 10,
+    "collectionId":"65abd4ac9d1448617cba6171",
+    "searchText":""
+}'
+```
+
+**4.6.7-(即将弃用)**
+
 ```bash
 curl --location --request POST 'http://localhost:3000/api/core/dataset/data/list' \
 --header 'Authorization: Bearer {{authorization}}' \
@@ -1112,10 +1209,12 @@ curl --location --request POST 'http://localhost:3000/api/core/dataset/data/list
 {{< markdownify >}}
 
 {{% alert icon=" " context="success" %}}
-- pageNum: 页码（选填）
+
+- offset: 偏移量（选填）
 - pageSize: 每页数量，最大30（选填）
 - collectionId: 集合的ID（必填）
 - searchText: 模糊搜索词（选填）
+  
 {{% /alert %}}
 
 {{< /markdownify >}}
@@ -1131,9 +1230,7 @@ curl --location --request POST 'http://localhost:3000/api/core/dataset/data/list
     "statusText": "",
     "message": "",
     "data": {
-        "pageNum": 1,
-        "pageSize": 10,
-        "data": [
+        "list": [
             {
                 "_id": "65abd4b29d1448617cba61db",
                 "datasetId": "65abc9bd9d1448617cba5e6c",
@@ -1328,7 +1425,7 @@ curl --location --request DELETE 'http://localhost:3000/api/core/dataset/data/de
 {{< markdownify >}}
 
 ```bash
-curl --location --request POST 'https://api.tryfastgpt.ai/api/core/dataset/searchTest' \
+curl --location --request POST 'https://api.fastgpt.in/api/core/dataset/searchTest' \
 --header 'Authorization: Bearer fastgpt-xxxxx' \
 --header 'Content-Type: application/json' \
 --data-raw '{
@@ -1337,7 +1434,11 @@ curl --location --request POST 'https://api.tryfastgpt.ai/api/core/dataset/searc
     "limit": 5000,
     "similarity": 0,
     "searchMode": "embedding",
-    "usingReRank": false
+    "usingReRank": false,
+
+    "datasetSearchUsingExtensionQuery": true,
+    "datasetSearchExtensionModel": "gpt-4o-mini",
+    "datasetSearchExtensionBg": ""
 }'
 ```
 
@@ -1354,6 +1455,9 @@ curl --location --request POST 'https://api.tryfastgpt.ai/api/core/dataset/searc
 - similarity - 最低相关度（0~1，可选）
 - searchMode - 搜索模式：embedding | fullTextRecall | mixedRecall
 - usingReRank - 使用重排
+- datasetSearchUsingExtensionQuery - 使用问题优化
+- datasetSearchExtensionModel - 问题优化模型
+- datasetSearchExtensionBg - 问题优化背景描述
 {{% /alert %}}
 
 {{< /markdownify >}}

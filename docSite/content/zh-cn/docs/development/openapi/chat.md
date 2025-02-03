@@ -7,13 +7,15 @@ toc: true
 weight: 852
 ---
 
+# 发起对话
+
 {{% alert icon="🤖 " context="success" %}}
 * 该接口的 API Key 需使用`应用特定的 key`，否则会报错。  
 
 * 有些包调用时，`BaseUrl`需要添加`v1`路径，有些不需要，如果出现404情况，可补充`v1`重试。
 {{% /alert %}}
 
-## 发起对话(简易应用和工作流)
+## 请求简易应用和工作流
 
 对话接口兼容`GPT`的接口！如果你的项目使用的是标准的`GPT`官方接口，可以直接通过修改`BaseUrl`和 `Authorization`来访问 FastGpt 应用，不过需要注意下面几个规则：
 
@@ -24,26 +26,68 @@ weight: 852
 
 ### 请求
 
-{{< tabs tabTotal="2" >}}
-{{< tab tabName="请求示例" >}}
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="基础请求示例" >}}
 {{< markdownify >}}
 
 ```bash
-curl --location --request POST 'https://api.tryfastgpt.ai/api/v1/chat/completions' \
+curl --location --request POST 'http://localhost:3000/api/v1/chat/completions' \
 --header 'Authorization: Bearer fastgpt-xxxxxx' \
 --header 'Content-Type: application/json' \
 --data-raw '{
-    "chatId": "abcd",
+    "chatId": "my_chatId",
     "stream": false,
     "detail": false,
+    "responseChatItemId": "my_responseChatItemId",
     "variables": {
         "uid": "asdfadsfasfd2323",
         "name": "张三"
     },
     "messages": [
         {
-            "content": "导演是谁",
-            "role": "user"
+            "role": "user",
+            "content": "导演是谁"
+        }
+    ]
+}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="图片/文件请求示例" >}}
+{{< markdownify >}}
+
+* 仅`messages`有部分区别，其他参数一致。
+* 目前不支持上次文件，需上传到自己的对象存储中，获取对应的文件链接。
+
+```bash
+curl --location --request POST 'http://localhost:3000/api/v1/chat/completions' \
+--header 'Authorization: Bearer fastgpt-xxxxxx' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "chatId": "abcd",
+    "stream": false,
+    "messages": [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "导演是谁"
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": "图片链接"
+                    }
+                },
+                {
+                    "type": "file_url",
+                    "name": "文件名",
+                    "url": "文档链接，支持 txt md html word pdf ppt csv excel"
+                }
+            ]
         }
     ]
 }'
@@ -61,6 +105,7 @@ curl --location --request POST 'https://api.tryfastgpt.ai/api/v1/chat/completion
   - 为 `undefined` 时（不传入），不使用 FastGpt 提供的上下文功能，完全通过传入的 messages 构建上下文。 不会将你的记录存储到数据库中，你也无法在记录汇总中查阅到。
   - 为`非空字符串`时，意味着使用 chatId 进行对话，自动从 FastGpt 数据库取历史记录，并使用 messages 数组最后一个内容作为用户问题。请自行确保 chatId 唯一，长度小于250，通常可以是自己系统的对话框ID。
 - messages: 结构与 [GPT接口](https://platform.openai.com/docs/api-reference/chat/object) chat模式一致。
+- responseChatItemId: string | undefined 。如果传入，则会将该值作为本次对话的响应消息的 ID，FastGPT 会自动将该 ID 存入数据库。请确保，在当前`chatId`下，`responseChatItemId`是唯一的。
 - detail: 是否返回中间值（模块状态，响应的完整结果等），`stream模式`下会通过`event`进行区分，`非stream模式`结果保存在`responseData`中。
 - variables: 模块变量，一个对象，会替换模块中，输入框内容里的`{{key}}`
 {{% /alert %}}
@@ -269,6 +314,148 @@ event取值：
 {{< /tabs >}}
 
 
+### 交互节点响应
+
+如果工作流中包含交互节点，依然是调用该 API 接口，需要设置`detail=true`，并可以从`event=interactive`的数据中获取交互节点的配置信息。如果是`stream=false`，则可以从 choice 中获取`type=interactive`的元素，获取交互节点的选择信息。
+
+当你调用一个带交互节点的工作流时，如果工作流遇到了交互节点，那么会直接返回，你可以得到下面的信息：
+
+{{< tabs tabTotal="2" >}}
+{{< tab tabName="用户选择" >}}
+{{< markdownify >}}
+
+```json
+{
+    "interactive": {
+        "type": "userSelect",
+        "params": {
+            "description": "测试",
+            "userSelectOptions": [
+                {
+                    "value": "Confirm",
+                    "key": "option1"
+                },
+                {
+                    "value": "Cancel",
+                    "key": "option2"
+                }
+            ]
+        }
+    }
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="表单输入" >}}
+{{< markdownify >}}
+
+```json
+{
+    "interactive": {
+        "type": "userInput",
+        "params": {
+            "description": "测试",
+            "inputForm": [
+                {
+                    "type": "input",
+                    "key": "测试 1",
+                    "label": "测试 1",
+                    "description": "",
+                    "value": "",
+                    "defaultValue": "",
+                    "valueType": "string",
+                    "required": false,
+                    "list": [
+                        {
+                            "label": "",
+                            "value": ""
+                        }
+                    ]
+                },
+                {
+                    "type": "numberInput",
+                    "key": "测试 2",
+                    "label": "测试 2",
+                    "description": "",
+                    "value": "",
+                    "defaultValue": "",
+                    "valueType": "number",
+                    "required": false,
+                    "list": [
+                        {
+                            "label": "",
+                            "value": ""
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+### 交互节点继续运行
+
+紧接着上一节，当你接收到交互节点信息后，可以根据这些数据进行 UI 渲染，引导用户输入或选择相关信息。然后需要再次发起对话，来继续工作流。调用的接口与仍是该接口，你需要按以下格式来发起请求：
+
+{{< tabs tabTotal="2" >}}
+{{< tab tabName="用户选择" >}}
+{{< markdownify >}}
+
+对于用户选择，你只需要直接传递一个选择的结果给 messages 即可。
+
+```bash
+curl --location --request POST 'https://api.fastgpt.in/api/v1/chat/completions' \
+--header 'Authorization: Bearer fastgpt-xxx' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "stream": true,
+    "detail": true,
+    "chatId":"22222231",
+    "messages": [
+        {
+            "role": "user",
+            "content": "Confirm"
+        }
+    ]
+}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="表单输入" >}}
+{{< markdownify >}}
+
+表单输入稍微麻烦一点，需要将输入的内容，以对象形式并序列化成字符串，作为`messages`的值。对象的 key 对应表单的 key，value 为用户输入的值。务必确保`chatId`是一致的。
+
+```bash
+curl --location --request POST 'https://api.fastgpt.in/api/v1/chat/completions' \
+--header 'Authorization: Bearer fastgpt-xxxx' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "stream": true,
+    "detail": true,
+    "chatId":"22231",
+    "messages": [
+        {
+            "role": "user",
+            "content": "{\"测试 1\":\"这是输入框的内容\",\"测试 2\":666}"
+        }
+    ]
+}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
 
 ## 请求插件
 
@@ -455,8 +642,811 @@ event取值：
 {{< /tab >}}
 {{< /tabs >}}
 
-## 使用案例
 
-- [接入 NextWeb/ChatGPT web 等应用](/docs/course/openapi)
-- [接入 onwechat](/docs/use-cases/onwechat)
-- [接入 飞书](/docs/course/feishu)
+
+# 对话 CRUD
+
+{{% alert icon="🤖 " context="success" %}}
+* 以下接口可使用任意`API Key`调用。  
+* 4.8.12 以上版本才能使用
+{{% /alert %}}
+
+**重要字段**
+
+* chatId - 指一个应用下，某一个对话窗口的 ID
+* dataId - 指一个对话窗口下，某一个对话记录的 ID
+
+## 历史记录
+
+### 获取某个应用历史记录
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request POST 'http://localhost:3000/api/core/chat/getHistories' \
+--header 'Authorization: Bearer {{apikey}}' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "appId": "appId",
+    "offset": 0,
+    "pageSize": 20,
+    "source: "api"
+}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+- appId - 应用 Id
+- offset - 偏移量，即从第几条数据开始取
+- pageSize - 记录数量
+- source - 对话源。source=api，表示获取通过 API 创建的对话（不会获取到页面上的对话记录）
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": {
+        "list": [
+            {
+                "chatId": "usdAP1GbzSGu",
+                "updateTime": "2024-10-13T03:29:05.779Z",
+                "appId": "66e29b870b24ce35330c0f08",
+                "customTitle": "",
+                "title": "你好",
+                "top": false
+            },
+            {
+                "chatId": "lC0uTAsyNBlZ",
+                "updateTime": "2024-10-13T03:22:19.950Z",
+                "appId": "66e29b870b24ce35330c0f08",
+                "customTitle": "",
+                "title": "测试",
+                "top": false
+            }
+        ],
+        "total": 2
+    }
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+### 修改某个对话的标题
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request POST 'http://localhost:3000/api/core/chat/updateHistory' \
+--header 'Authorization: Bearer {{apikey}}' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "appId": "appId",
+    "chatId": "chatId",
+    "customTitle": "自定义标题"
+}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+- appId - 应用 Id
+- chatId - 历史记录 Id
+- customTitle - 自定义对话名
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": null
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+### 置顶 / 取消置顶
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request POST 'http://localhost:3000/api/core/chat/updateHistory' \
+--header 'Authorization: Bearer {{apikey}}' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "appId": "appId",
+    "chatId": "chatId",
+    "top": true
+}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+- appId - 应用Id
+- chatId - 历史记录 Id
+- top - 是否置顶，ture 置顶，false 取消置顶
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": null
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+### 删除某个历史记录
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request DELETE 'http://localhost:3000/api/core/chat/delHistory?chatId={{chatId}}&appId={{appId}}' \
+--header 'Authorization: Bearer {{apikey}}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+- appId - 应用 Id
+- chatId - 历史记录 Id
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": null
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+### 清空所有历史记录
+
+仅会情况通过 API Key 创建的对话历史记录，不会清空在线使用、分享链接等其他来源的对话历史记录。
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request DELETE 'http://localhost:3000/api/core/chat/clearHistories?appId={{appId}}' \
+--header 'Authorization: Bearer {{apikey}}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+- appId - 应用 Id
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": null
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+## 对话记录
+
+指的是某个 chatId 下的对话记录操作。
+
+### 获取单个对话初始化信息
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request GET 'http://localhost:3000/api/core/chat/init?appId={{appId}}&chatId={{chatId}}' \
+--header 'Authorization: Bearer {{apikey}}'
+```
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+- appId - 应用 Id
+- chatId - 历史记录 Id
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": {
+        "chatId": "sPVOuEohjo3w",
+        "appId": "66e29b870b24ce35330c0f08",
+        "variables": {
+
+        },
+        "app": {
+            "chatConfig": {
+                "questionGuide": true,
+                "ttsConfig": {
+                    "type": "web"
+                },
+                "whisperConfig": {
+                    "open": false,
+                    "autoSend": false,
+                    "autoTTSResponse": false
+                },
+                "chatInputGuide": {
+                    "open": false,
+                    "textList": [
+
+                    ],
+                    "customUrl": ""
+                },
+                "instruction": "",
+                "variables": [
+
+                ],
+                "fileSelectConfig": {
+                    "canSelectFile": true,
+                    "canSelectImg": true,
+                    "maxFiles": 10
+                },
+                "_id": "66f1139aaab9ddaf1b5c596d",
+                "welcomeText": ""
+            },
+            "chatModels": [
+                "GPT-4o-mini"
+            ],
+            "name": "测试",
+            "avatar": "/imgs/app/avatar/workflow.svg",
+            "intro": "",
+            "type": "advanced",
+            "pluginInputs": [
+
+            ]
+        }
+    }
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+### 获取对话记录列表
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request POST 'http://localhost:3000/api/core/chat/getPaginationRecords' \
+--header 'Authorization: Bearer {{apikey}}' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "appId": "appId",
+    "chatId": "chatId",
+    "offset": 0,
+    "pageSize": 10,
+    "loadCustomFeedbacks": true
+}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+- appId - 应用 Id
+- chatId - 历史记录 Id
+- offset - 偏移量
+- pageSize - 记录数量
+- loadCustomFeedbacks - 是否读取自定义反馈（可选）
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": {
+        "list": [
+            {
+                "_id": "670b84e6796057dda04b0fd2",
+                "dataId": "jzqdV4Ap1u004rhd2WW8yGLn",
+                "obj": "Human",
+                "value": [
+                    {
+                        "type": "text",
+                        "text": {
+                            "content": "你好"
+                        }
+                    }
+                ],
+                "customFeedbacks": [
+
+                ]
+            },
+            {
+                "_id": "670b84e6796057dda04b0fd3",
+                "dataId": "x9KQWcK9MApGdDQH7z7bocw1",
+                "obj": "AI",
+                "value": [
+                    {
+                        "type": "text",
+                        "text": {
+                            "content": "你好！有什么我可以帮助你的吗？"
+                        }
+                    }
+                ],
+                "customFeedbacks": [
+
+                ],
+                "llmModuleAccount": 1,
+                "totalQuoteList": [
+
+                ],
+                "totalRunningTime": 2.42,
+                "historyPreviewLength": 2
+            }
+        ],
+        "total": 2
+    }
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+### 获取单个对话记录运行详情
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request GET 'http://localhost:3000/api/core/chat/getResData?appId={{appId}}&chatId={{chatId}}&dataId={{dataId}}' \
+--header 'Authorization: Bearer {{apikey}}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+- appId - 应用 Id
+- chatId - 对话 Id
+- dataId - 对话记录 Id
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": [
+        {
+            "id": "mVlxkz8NfyfU",
+            "nodeId": "448745",
+            "moduleName": "common:core.module.template.work_start",
+            "moduleType": "workflowStart",
+            "runningTime": 0
+        },
+        {
+            "id": "b3FndAdHSobY",
+            "nodeId": "z04w8JXSYjl3",
+            "moduleName": "AI 对话",
+            "moduleType": "chatNode",
+            "runningTime": 1.22,
+            "totalPoints": 0.02475,
+            "model": "GPT-4o-mini",
+            "tokens": 75,
+            "query": "测试",
+            "maxToken": 2000,
+            "historyPreview": [
+                {
+                    "obj": "Human",
+                    "value": "你好"
+                },
+                {
+                    "obj": "AI",
+                    "value": "你好！有什么我可以帮助你的吗？"
+                },
+                {
+                    "obj": "Human",
+                    "value": "测试"
+                },
+                {
+                    "obj": "AI",
+                    "value": "测试成功！请问你有什么具体的问题或者需要讨论的话题吗？"
+                }
+            ],
+            "contextTotalLen": 4
+        }
+    ]
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+
+### 删除对话记录
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request DELETE 'http://localhost:3000/api/core/chat/item/delete?contentId={{contentId}}&chatId={{chatId}}&appId={{appId}}' \
+--header 'Authorization: Bearer {{apikey}}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+- appId - 应用 Id
+- chatId - 历史记录 Id
+- contentId - 对话记录 Id
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": null
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+### 点赞 / 取消点赞
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request POST 'http://localhost:3000/api/core/chat/feedback/updateUserFeedback' \
+--header 'Authorization: Bearer {{apikey}}' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "appId": "appId",
+    "chatId": "chatId",
+    "dataId": "dataId",
+    "userGoodFeedback": "yes"
+}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+- appId - 应用 Id
+- chatId - 历史记录 Id
+- dataId - 对话记录 Id
+- userGoodFeedback - 用户点赞时的信息（可选），取消点赞时不填此参数即可
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": null
+}
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+### 点踩 / 取消点踩
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request POST 'http://localhost:3000/api/core/chat/feedback/updateUserFeedback' \
+--header 'Authorization: Bearer {{apikey}}' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "appId": "appId",
+    "chatId": "chatId",
+    "dataId": "dataId",
+    "userBadFeedback": "yes"
+}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+- appId - 应用 Id
+- chatId - 历史记录 Id
+- dataId - 对话记录 Id
+- userBadFeedback - 用户点踩时的信息（可选），取消点踩时不填此参数即可
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": null
+}
+```
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+## 猜你想问
+
+**4.8.16 后新版接口**
+
+新版猜你想问，必须包含 appId 和 chatId 的参数才可以进行使用。会自动根据 chatId 去拉取最近 6 轮对话记录作为上下文来引导回答。
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request POST 'http://localhost:3000/api/core/ai/agent/v2/createQuestionGuide' \
+--header 'Authorization: Bearer {{apikey}}' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "appId": "appId",
+    "chatId": "chatId",
+    "questionGuide": {
+        "open": true,
+        "model": "GPT-4o-mini",
+        "customPrompt": "你是一个智能助手，请根据用户的问题生成猜你想问。"
+    }
+}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+
+| 参数名 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| appId | string | ✅ | 应用 Id |
+| chatId | string | ✅ | 对话 Id |
+| questionGuide | object |  | 自定义配置，不传的话，则会根据 appId，取最新发布版本的配置 |
+
+```ts
+type CreateQuestionGuideParams = OutLinkChatAuthProps & {
+  appId: string;
+  chatId: string;
+  questionGuide?: {
+    open: boolean;
+    model?: string;
+    customPrompt?: string;
+  };
+};
+```
+
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": [
+        "你对AI有什么看法？",
+        "想了解AI的应用吗？",
+        "你希望AI能做什么？"
+    ]
+}
+```
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+---
+
+**4.8.16 前旧版接口：**
+
+{{< tabs tabTotal="3" >}}
+{{< tab tabName="请求示例" >}}
+{{< markdownify >}}
+
+```bash
+curl --location --request POST 'http://localhost:3000/api/core/ai/agent/createQuestionGuide' \
+--header 'Authorization: Bearer {{apikey}}' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "messages":[
+        {
+            "role": "user",
+            "content": "你好"
+        },
+        {
+            "role": "assistant",
+            "content": "你好！有什么我可以帮助你的吗？"
+        }
+    ]
+}'
+```
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="参数说明" >}}
+{{< markdownify >}}
+
+{{% alert icon=" " context="success" %}}
+- messages - 对话消息，提供给 AI 的消息记录
+{{% /alert %}}
+
+{{< /markdownify >}}
+{{< /tab >}}
+
+{{< tab tabName="响应示例" >}}
+{{< markdownify >}}
+
+```json
+{
+    "code": 200,
+    "statusText": "",
+    "message": "",
+    "data": [
+        "你对AI有什么看法？",
+        "想了解AI的应用吗？",
+        "你希望AI能做什么？"
+    ]
+}
+```
+{{< /markdownify >}}
+{{< /tab >}}
+{{< /tabs >}}
+
+
+
+
+

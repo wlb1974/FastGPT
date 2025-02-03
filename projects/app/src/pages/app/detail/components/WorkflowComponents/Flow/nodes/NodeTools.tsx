@@ -6,7 +6,6 @@ import Divider from '../components/Divider';
 import Container from '../components/Container';
 import RenderInput from './render/RenderInput';
 import { useTranslation } from 'next-i18next';
-import { ToolSourceHandle } from './render/Handle/ToolHandle';
 import { Box } from '@chakra-ui/react';
 import IOTitle from '../components/IOTitle';
 import MyIcon from '@fastgpt/web/components/common/Icon';
@@ -27,7 +26,7 @@ const NodeTools = ({ data, selected }: NodeProps<FlowNodeItemType>) => {
         <RenderOutput nodeId={nodeId} flowOutputList={outputs} />
       </Container>
       <Box position={'relative'}>
-        <Box borderBottomLeftRadius={'md'} borderBottomRadius={'md'} overflow={'hidden'}>
+        <Box mb={-3} borderBottomRadius={'lg'} overflow={'hidden'}>
           <Divider
             showBorderBottom={false}
             icon={<MyIcon name="phoneTabbar/tool" w={'16px'} h={'16px'} />}

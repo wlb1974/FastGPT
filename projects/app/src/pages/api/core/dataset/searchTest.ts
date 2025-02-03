@@ -14,6 +14,7 @@ import {
 import { NextAPI } from '@/service/middleware/entry';
 import { ReadPermissionVal } from '@fastgpt/global/support/permission/constant';
 import { CommonErrEnum } from '@fastgpt/global/common/error/code/common';
+import { useReqFrequencyLimit } from '@fastgpt/service/common/middle/reqFrequencyLimit';
 
 async function handler(req: NextApiRequest) {
   const {
@@ -73,14 +74,15 @@ async function handler(req: NextApiRequest) {
   const { totalPoints } = pushGenerateVectorUsage({
     teamId,
     tmbId,
-    tokens,
+    inputTokens: tokens,
     model: dataset.vectorModel,
     source: apikey ? UsageSourceEnum.api : UsageSourceEnum.fastgpt,
 
     ...(aiExtensionResult &&
       extensionModel && {
         extensionModel: extensionModel.name,
-        extensionTokens: aiExtensionResult.tokens
+        extensionInputTokens: aiExtensionResult.inputTokens,
+        extensionOutputTokens: aiExtensionResult.outputTokens
       })
   });
   if (apikey) {
@@ -98,4 +100,4 @@ async function handler(req: NextApiRequest) {
   };
 }
 
-export default NextAPI(handler);
+export default NextAPI(useReqFrequencyLimit(1, 15), handler);

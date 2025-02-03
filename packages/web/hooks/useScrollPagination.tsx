@@ -16,7 +16,7 @@ import MyBox from '../components/common/MyBox';
 import { useTranslation } from 'next-i18next';
 
 type ItemHeight<T> = (index: number, data: T) => number;
-const thresholdVal = 200;
+const thresholdVal = 100;
 
 export type ScrollListType = ({
   children,
@@ -188,7 +188,8 @@ export function useScrollPagination<
 
     pageSize = 10,
     params = {},
-    EmptyTip
+    EmptyTip,
+    showErrorToast = true
   }: {
     refreshDeps?: any[];
     scrollLoadType?: 'top' | 'bottom';
@@ -196,6 +197,7 @@ export function useScrollPagination<
     pageSize?: number;
     params?: Record<string, any>;
     EmptyTip?: React.JSX.Element;
+    showErrorToast?: boolean;
   }
 ) {
   const { t } = useTranslation();
@@ -249,10 +251,12 @@ export function useScrollPagination<
           setData((prevData) => (offset === 0 ? res.list : [...prevData, ...res.list]));
         }
       } catch (error: any) {
-        toast({
-          title: getErrText(error, t('common:core.chat.error.data_error')),
-          status: 'error'
-        });
+        if (showErrorToast) {
+          toast({
+            title: getErrText(error, t('common:core.chat.error.data_error')),
+            status: 'error'
+          });
+        }
         console.log(error);
       }
 
@@ -265,8 +269,10 @@ export function useScrollPagination<
     ({
       children,
       ScrollContainerRef,
+      isLoading,
       ...props
     }: {
+      isLoading?: boolean;
       children: ReactNode;
       ScrollContainerRef?: RefObject<HTMLDivElement>;
     } & BoxProps) => {
@@ -298,7 +304,7 @@ export function useScrollPagination<
       );
 
       return (
-        <Box {...props} ref={ref} overflow={'overlay'}>
+        <MyBox {...props} ref={ref} overflow={'overlay'} isLoading={isLoading}>
           {scrollLoadType === 'top' && total > 0 && isLoading && (
             <Box mt={2} fontSize={'xs'} color={'blackAlpha.500'} textAlign={'center'}>
               {t('common:common.is_requesting')}
@@ -321,7 +327,7 @@ export function useScrollPagination<
             </Box>
           )}
           {isEmpty && EmptyTip}
-        </Box>
+        </MyBox>
       );
     }
   );

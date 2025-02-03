@@ -9,7 +9,10 @@ import type {
   OauthLoginProps,
   PostLoginProps
 } from '@fastgpt/global/support/user/api.d';
-import { GetWXLoginQRResponse } from '@fastgpt/global/support/user/login/api.d';
+import {
+  AccountRegisterBody,
+  GetWXLoginQRResponse
+} from '@fastgpt/global/support/user/login/api.d';
 
 export const sendAuthCode = (data: {
   username: string;
@@ -30,17 +33,16 @@ export const postRegister = ({
   username,
   password,
   code,
-  inviterId
-}: {
-  username: string;
-  code: string;
-  password: string;
-  inviterId?: string;
-}) =>
+  inviterId,
+  bd_vid,
+  fastgpt_sem
+}: AccountRegisterBody) =>
   POST<ResLogin>(`/proApi/support/user/account/register/emailAndPhone`, {
     username,
     code,
     inviterId,
+    bd_vid,
+    fastgpt_sem,
     password: hashStr(password)
   });
 
@@ -88,3 +90,5 @@ export const getCaptchaPic = (username: string) =>
   GET<{
     captchaImage: string;
   }>('/proApi/support/user/account/captcha/getImgCaptcha', { username });
+
+export const postSyncMembers = () => POST('/proApi/support/user/team/org/sync');

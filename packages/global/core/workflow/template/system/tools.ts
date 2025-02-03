@@ -16,10 +16,11 @@ import {
   Input_Template_System_Prompt,
   Input_Template_UserChatInput
 } from '../input';
-import { chatNodeSystemPromptTip } from '../tip';
+import { chatNodeSystemPromptTip, systemPromptTip } from '../tip';
 import { LLMModelTypeEnum } from '../../../ai/constants';
 import { getHandleConfig } from '../utils';
 import { i18nT } from '../../../../../web/i18n/utils';
+import { Input_Template_File_Link_Prompt } from '../input';
 
 export const ToolModule: FlowNodeTemplateType = {
   id: FlowNodeTypeEnum.tools,
@@ -31,7 +32,8 @@ export const ToolModule: FlowNodeTemplateType = {
   name: i18nT('workflow:template.tool_call'),
   intro: i18nT('workflow:template.tool_call_intro'),
   showStatus: true,
-  version: '481',
+  courseUrl: '/docs/guide/workbench/workflow/tool/',
+  version: '4813',
   inputs: [
     {
       ...Input_Template_SettingAiModel,
@@ -62,10 +64,11 @@ export const ToolModule: FlowNodeTemplateType = {
     {
       ...Input_Template_System_Prompt,
       label: i18nT('common:core.ai.Prompt'),
-      description: chatNodeSystemPromptTip,
+      description: systemPromptTip,
       placeholder: chatNodeSystemPromptTip
     },
     Input_Template_History,
+    Input_Template_File_Link_Prompt,
     Input_Template_UserChatInput
   ],
   outputs: [

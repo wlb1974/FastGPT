@@ -6,6 +6,7 @@ import { Connection, Handle, Position } from 'reactflow';
 import { useCallback, useMemo } from 'react';
 import { useContextSelector } from 'use-context-selector';
 import { WorkflowContext } from '@/pages/app/detail/components/WorkflowComponents/context';
+import { WorkflowNodeEdgeContext } from '../../../../context/workflowInitContext';
 
 const handleSize = '16px';
 
@@ -16,15 +17,16 @@ type ToolHandleProps = BoxProps & {
 export const ToolTargetHandle = ({ show, nodeId }: ToolHandleProps) => {
   const { t } = useTranslation();
   const connectingEdge = useContextSelector(WorkflowContext, (ctx) => ctx.connectingEdge);
-  const edges = useContextSelector(WorkflowContext, (v) => v.edges);
+  const edges = useContextSelector(WorkflowNodeEdgeContext, (v) => v.edges);
 
   const handleId = NodeOutputKeyEnum.selectedTools;
 
   const connected = edges.some((edge) => edge.target === nodeId && edge.targetHandle === handleId);
 
   // if top handle is connected, return null
-  const showHandle =
-    connected || (show && connectingEdge?.handleId === NodeOutputKeyEnum.selectedTools);
+  const showHandle = connectingEdge
+    ? show && connectingEdge.handleId === NodeOutputKeyEnum.selectedTools
+    : connected;
 
   const Render = useMemo(() => {
     return (
@@ -51,6 +53,8 @@ export const ToolTargetHandle = ({ show, nodeId }: ToolHandleProps) => {
           w={handleSize}
           h={handleSize}
           border={'4px solid #8774EE'}
+          rounded={'xs'}
+          bg={'white'}
           transform={'translate(0,0) rotate(45deg)'}
           pointerEvents={'none'}
         />
@@ -63,7 +67,7 @@ export const ToolTargetHandle = ({ show, nodeId }: ToolHandleProps) => {
 
 export const ToolSourceHandle = () => {
   const { t } = useTranslation();
-  const setEdges = useContextSelector(WorkflowContext, (v) => v.setEdges);
+  const setEdges = useContextSelector(WorkflowNodeEdgeContext, (v) => v.setEdges);
 
   /* onConnect edge, delete tool input and switch */
   const onConnect = useCallback(
@@ -103,6 +107,8 @@ export const ToolSourceHandle = () => {
             w={handleSize}
             h={handleSize}
             border={'4px solid #8774EE'}
+            rounded={'xs'}
+            bg={'white'}
             transform={'translate(0,0) rotate(45deg)'}
             pointerEvents={'none'}
           />

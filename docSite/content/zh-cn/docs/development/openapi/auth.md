@@ -25,14 +25,14 @@ FastGPT 的 API Key **有 2 类**，一类是全局通用的 key (无法直接�
 
 |        通用key               |           应用特定 key            |
 | --------------------- | --------------------- |
-| ![](/imgs/fastgpt-api2.jpg) | ![](/imgs/fastgpt-api.jpg) |
+| ![](/imgs/fastgpt-api2.jpg) | ![](/imgs/fastgpt-api1.jpg) |
 
 ## 基本配置
 
 OpenAPI 中，所有的接口都通过 Header.Authorization 进行鉴权。
 
 ```
-baseUrl: "https://api.tryfastgpt.ai/api"
+baseUrl: "https://api.fastgpt.in/api"
 headers: {
     Authorization: "Bearer {{apikey}}"
 }
@@ -41,7 +41,7 @@ headers: {
 **发起应用对话示例**
 
 ```sh
-curl --location --request POST 'https://api.tryfastgpt.ai/api/v1/chat/completions' \
+curl --location --request POST 'https://api.fastgpt.in/api/v1/chat/completions' \
 --header 'Authorization: Bearer fastgpt-xxxxxx' \
 --header 'Content-Type: application/json' \
 --data-raw '{
@@ -56,3 +56,27 @@ curl --location --request POST 'https://api.tryfastgpt.ai/api/v1/chat/completion
     ]
 }'
 ```
+
+## 自定义用户 ID
+
+`v4.8.13`后支持传入自定义的用户 ID, 并且存入历史记录中。
+
+```sh
+curl --location --request POST 'https://api.fastgpt.in/api/v1/chat/completions' \
+--header 'Authorization: Bearer fastgpt-xxxxxx' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+    "chatId": "111",
+    "stream": false,
+    "detail": false,
+    "messages": [
+        {
+            "content": "导演是谁",
+            "role": "user"
+        }
+    ],
+    "customUid": "xxxxxx"
+}'
+```
+
+在历史记录中，该条记录的使用者会显示为 `xxxxxx`。

@@ -9,8 +9,6 @@ import {
   TeamCollectionName,
   TeamMemberCollectionName
 } from '@fastgpt/global/support/user/team/constant';
-import { DatasetDefaultPermissionVal } from '@fastgpt/global/support/permission/dataset/constant';
-import { getPermissionSchema } from '@fastgpt/global/support/permission/utils';
 import type { DatasetSchemaType } from '@fastgpt/global/core/dataset/type.d';
 
 export const DatasetCollectionName = 'datasets';
@@ -85,10 +83,27 @@ const DatasetSchema = new Schema({
       }
     }
   },
+  inheritPermission: {
+    type: Boolean,
+    default: true
+  },
+  apiServer: {
+    type: Object
+  },
+  feishuServer: {
+    type: Object
+  },
+  yuqueServer: {
+    type: Object
+  },
+
+  autoSync: Boolean,
+
+  // abandoned
   externalReadUrl: {
     type: String
   },
-  ...getPermissionSchema(DatasetDefaultPermissionVal)
+  defaultPermission: Number
 });
 
 try {

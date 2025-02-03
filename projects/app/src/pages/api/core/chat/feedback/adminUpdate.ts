@@ -4,37 +4,36 @@ import { connectToDatabase } from '@/service/mongo';
 import type { AdminUpdateFeedbackParams } from '@/global/core/chat/api.d';
 import { MongoChatItem } from '@fastgpt/service/core/chat/chatItemSchema';
 import { authChatCrud } from '@/service/support/permission/auth/chat';
-import { ReadPermissionVal } from '@fastgpt/global/support/permission/constant';
 
 /* 初始化我的聊天框，需要身份验证 */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     await connectToDatabase();
-    const { appId, chatId, chatItemId, datasetId, dataId, q, a } =
+    const { appId, chatId, dataId, datasetId, feedbackDataId, q, a } =
       req.body as AdminUpdateFeedbackParams;
 
-    if (!chatItemId || !datasetId || !dataId || !q) {
+    if (!dataId || !datasetId || !feedbackDataId || !q) {
       throw new Error('missing parameter');
     }
 
     await authChatCrud({
       req,
       authToken: true,
+      authApiKey: true,
       appId,
-      chatId,
-      per: ReadPermissionVal
+      chatId
     });
 
     await MongoChatItem.findOneAndUpdate(
       {
         appId,
         chatId,
-        dataId: chatItemId
+        dataId
       },
       {
         adminFeedback: {
           datasetId,
-          dataId,
+          dataId: feedbackDataId,
           q,
           a
         }

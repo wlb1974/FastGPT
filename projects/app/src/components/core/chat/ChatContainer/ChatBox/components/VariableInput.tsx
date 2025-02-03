@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Controller, UseFormReturn } from 'react-hook-form';
 import { useTranslation } from 'next-i18next';
-import { Box, Button, Card, FormControl, Input, Textarea } from '@chakra-ui/react';
+import { Box, Button, Card, Textarea } from '@chakra-ui/react';
 import ChatAvatar from './ChatAvatar';
 import { MessageCardStyle } from '../constants';
 import { VariableInputEnum } from '@fastgpt/global/core/workflow/constants';
@@ -10,6 +10,103 @@ import MyIcon from '@fastgpt/web/components/common/Icon';
 import { ChatBoxInputFormType } from '../type.d';
 import { useContextSelector } from 'use-context-selector';
 import { ChatBoxContext } from '../Provider';
+import QuestionTip from '@fastgpt/web/components/common/MyTooltip/QuestionTip';
+import { VariableItemType } from '@fastgpt/global/core/app/type';
+import MyTextarea from '@/components/common/Textarea/MyTextarea';
+import MyNumberInput from '@fastgpt/web/components/common/Input/NumberInput';
+import { ChatItemContext } from '@/web/core/chat/context/chatItemContext';
+
+export const VariableInputItem = ({
+  item,
+  variablesForm
+}: {
+  item: VariableItemType;
+  variablesForm: UseFormReturn<any>;
+}) => {
+  const { register, control, setValue } = variablesForm;
+
+  return (
+    <Box key={item.id} mb={4} pl={1}>
+      <Box
+        as={'label'}
+        display={'flex'}
+        position={'relative'}
+        mb={1}
+        alignItems={'center'}
+        w={'full'}
+      >
+        {item.label}
+        {item.required && (
+          <Box position={'absolute'} top={'-2px'} left={'-8px'} color={'red.500'}>
+            *
+          </Box>
+        )}
+        {item.description && <QuestionTip ml={1} label={item.description} />}
+      </Box>
+      {item.type === VariableInputEnum.input && (
+        <MyTextarea
+          autoHeight
+          minH={40}
+          maxH={160}
+          bg={'myGray.50'}
+          {...register(`variables.${item.key}`, {
+            required: item.required
+          })}
+        />
+      )}
+      {item.type === VariableInputEnum.textarea && (
+        <Textarea
+          {...register(`variables.${item.key}`, {
+            required: item.required
+          })}
+          rows={5}
+          bg={'myGray.50'}
+          maxLength={item.maxLength || 4000}
+        />
+      )}
+      {item.type === VariableInputEnum.select && (
+        <Controller
+          key={`variables.${item.key}`}
+          control={control}
+          name={`variables.${item.key}`}
+          rules={{ required: item.required }}
+          render={({ field: { ref, value } }) => {
+            return (
+              <MySelect
+                ref={ref}
+                width={'100%'}
+                list={(item.enums || []).map((item: { value: any }) => ({
+                  label: item.value,
+                  value: item.value
+                }))}
+                value={value}
+                onchange={(e) => setValue(`variables.${item.key}`, e)}
+              />
+            );
+          }}
+        />
+      )}
+      {item.type === VariableInputEnum.numberInput && (
+        <Controller
+          key={`variables.${item.key}`}
+          control={control}
+          name={`variables.${item.key}`}
+          rules={{ required: item.required, min: item.min, max: item.max }}
+          render={({ field: { value, onChange } }) => (
+            <MyNumberInput
+              step={1}
+              min={item.min}
+              max={item.max}
+              bg={'white'}
+              value={value}
+              onChange={onChange}
+            />
+          )}
+        />
+      )}
+    </Box>
+  );
+};
 
 const VariableInput = ({
   chatForm,
@@ -20,14 +117,24 @@ const VariableInput = ({
 }) => {
   const { t } = useTranslation();
 
-  const { appAvatar, variableList, variablesForm } = useContextSelector(ChatBoxContext, (v) => v);
-  const { register, setValue, handleSubmit: handleSubmitChat, control } = variablesForm;
+  const appAvatar = useContextSelector(ChatItemContext, (v) => v.chatBoxData?.app?.avatar);
+  const variablesForm = useContextSelector(ChatItemContext, (v) => v.variablesForm);
+  const variableList = useContextSelector(ChatBoxContext, (v) => v.variableList);
+
+  const { getValues, setValue, handleSubmit: handleSubmitChat } = variablesForm;
+
+  useEffect(() => {
+    variableList.forEach((item) => {
+      const val = getValues(`variables.${item.key}`);
+      if (item.defaultValue !== undefined && (val === undefined || val === null || val === '')) {
+        setValue(`variables.${item.key}`, item.defaultValue);
+      }
+    });
+  }, [variableList]);
 
   return (
     <Box py={3}>
-      {/* avatar */}
       <ChatAvatar src={appAvatar} type={'AI'} />
-      {/* message */}
       <Box textAlign={'left'}>
         <Card
           order={2}
@@ -38,74 +145,21 @@ const VariableInput = ({
           boxShadow={'0 0 8px rgba(0,0,0,0.15)'}
         >
           {variableList.map((item) => (
-            <Box key={item.id} mb={4}>
-              <Box as={'label'} display={'inline-block'} position={'relative'} mb={1}>
-                {item.label}
-                {item.required && (
-                  <Box
-                    position={'absolute'}
-                    top={'-2px'}
-                    right={'-10px'}
-                    color={'red.500'}
-                    fontWeight={'bold'}
-                  >
-                    *
-                  </Box>
-                )}
-              </Box>
-              {item.type === VariableInputEnum.input && (
-                <Input
-                  bg={'myWhite.400'}
-                  {...register(item.key, {
-                    required: item.required
-                  })}
-                />
-              )}
-              {item.type === VariableInputEnum.textarea && (
-                <Textarea
-                  bg={'myWhite.400'}
-                  {...register(item.key, {
-                    required: item.required
-                  })}
-                  rows={5}
-                  maxLength={4000}
-                />
-              )}
-              {item.type === VariableInputEnum.select && (
-                <Controller
-                  key={item.key}
-                  control={control}
-                  name={item.key}
-                  rules={{ required: item.required }}
-                  render={({ field: { ref, value } }) => {
-                    return (
-                      <MySelect
-                        ref={ref}
-                        width={'100%'}
-                        list={(item.enums || []).map((item) => ({
-                          label: item.value,
-                          value: item.value
-                        }))}
-                        value={value}
-                        onchange={(e) => setValue(item.key, e)}
-                      />
-                    );
-                  }}
-                />
-              )}
-            </Box>
+            <VariableInputItem key={item.id} item={item} variablesForm={variablesForm} />
           ))}
           {!chatStarted && (
-            <Button
-              leftIcon={<MyIcon name={'core/chat/chatFill'} w={'16px'} />}
-              size={'sm'}
-              maxW={'100px'}
-              onClick={handleSubmitChat(() => {
-                chatForm.setValue('chatStarted', true);
-              })}
-            >
-              {t('common:core.chat.Start Chat')}
-            </Button>
+            <Box>
+              <Button
+                leftIcon={<MyIcon name={'core/chat/chatFill'} w={'16px'} />}
+                size={'sm'}
+                maxW={'100px'}
+                onClick={handleSubmitChat(() => {
+                  chatForm.setValue('chatStarted', true);
+                })}
+              >
+                {t('common:core.chat.Start Chat')}
+              </Button>
+            </Box>
           )}
         </Card>
       </Box>

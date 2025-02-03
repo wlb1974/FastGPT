@@ -10,11 +10,9 @@ import {
   NodePositionChange,
   XYPosition,
   useReactFlow,
-  getNodesBounds,
-  Rect,
   NodeRemoveChange,
   NodeSelectionChange,
-  Position
+  EdgeRemoveChange
 } from 'reactflow';
 import { EDGE_TYPE, FlowNodeTypeEnum } from '@fastgpt/global/core/workflow/node/constant';
 import 'reactflow/dist/style.css';
@@ -24,15 +22,14 @@ import { useKeyboard } from './useKeyboard';
 import { useContextSelector } from 'use-context-selector';
 import { WorkflowContext } from '../../context';
 import { THelperLine } from '@fastgpt/global/core/workflow/type';
-import { NodeInputKeyEnum } from '@fastgpt/global/core/workflow/constants';
-import { useMemoizedFn } from 'ahooks';
-import {
-  Input_Template_Node_Height,
-  Input_Template_Node_Width
-} from '@fastgpt/global/core/workflow/template/input';
+import { NodeInputKeyEnum, NodeOutputKeyEnum } from '@fastgpt/global/core/workflow/constants';
+import { useDebounceEffect, useMemoizedFn } from 'ahooks';
 import { FlowNodeItemType } from '@fastgpt/global/core/workflow/type/node';
-import { getHandleId } from '@fastgpt/global/core/workflow/utils';
-import { IfElseResultEnum } from '@fastgpt/global/core/workflow/template/system/ifElse/constant';
+import { WorkflowNodeEdgeContext, WorkflowInitContext } from '../../context/workflowInitContext';
+import { formatTime2YMDHMS } from '@fastgpt/global/common/string/time';
+import { AppContext } from '../../../context';
+import { WorkflowEventContext } from '../../context/workflowEventContext';
+import { WorkflowStatusContext } from '../../context/workflowStatusContext';
 
 /* 
   Compute helper lines for snapping nodes to each other
@@ -273,57 +270,28 @@ export const useWorkflow = () => {
   const { toast } = useToast();
   const { t } = useTranslation();
 
-  const { isDowningCtrl } = useKeyboard();
-  const {
-    setConnectingEdge,
-    nodes,
-    nodeList,
-    onNodesChange,
-    setEdges,
-    onChangeNode,
-    onEdgesChange,
-    setHoverEdgeId
-  } = useContextSelector(WorkflowContext, (v) => v);
+  const appDetail = useContextSelector(AppContext, (e) => e.appDetail);
+
+  const nodes = useContextSelector(WorkflowInitContext, (state) => state.nodes);
+  const onNodesChange = useContextSelector(WorkflowNodeEdgeContext, (state) => state.onNodesChange);
+  const edges = useContextSelector(WorkflowNodeEdgeContext, (state) => state.edges);
+  const setEdges = useContextSelector(WorkflowNodeEdgeContext, (v) => v.setEdges);
+  const onEdgesChange = useContextSelector(WorkflowNodeEdgeContext, (v) => v.onEdgesChange);
+
+  const setConnectingEdge = useContextSelector(WorkflowContext, (v) => v.setConnectingEdge);
+  const nodeList = useContextSelector(WorkflowContext, (v) => v.nodeList);
+  const onChangeNode = useContextSelector(WorkflowContext, (v) => v.onChangeNode);
+  const pushPastSnapshot = useContextSelector(WorkflowContext, (v) => v.pushPastSnapshot);
+
+  const setHoverEdgeId = useContextSelector(WorkflowEventContext, (v) => v.setHoverEdgeId);
+  const setMenu = useContextSelector(WorkflowEventContext, (v) => v.setMenu);
+  const resetParentNodeSizeAndPosition = useContextSelector(
+    WorkflowStatusContext,
+    (v) => v.resetParentNodeSizeAndPosition
+  );
 
   const { getIntersectingNodes } = useReactFlow();
-
-  // Loop node size and position
-  const resetParentNodeSizeAndPosition = useMemoizedFn((rect: Rect, parentId: string) => {
-    const width = rect.width + 110 > 900 ? rect.width + 110 : 900;
-    const height = rect.height + 380 > 900 ? rect.height + 380 : 900;
-
-    // Update parentNode size and position
-    onChangeNode({
-      nodeId: parentId,
-      type: 'updateInput',
-      key: NodeInputKeyEnum.nodeWidth,
-      value: {
-        ...Input_Template_Node_Width,
-        value: width
-      }
-    });
-    onChangeNode({
-      nodeId: parentId,
-      type: 'updateInput',
-      key: NodeInputKeyEnum.nodeHeight,
-      value: {
-        ...Input_Template_Node_Height,
-        value: height
-      }
-    });
-
-    // Update parentNode position
-    onNodesChange([
-      {
-        id: parentId,
-        type: 'position',
-        position: {
-          x: rect.x - 50,
-          y: rect.y - 280
-        }
-      }
-    ]);
-  });
+  const { isDowningCtrl } = useKeyboard();
 
   /* helper line */
   const [helperLineHorizontal, setHelperLineHorizontal] = useState<THelperLine>();
@@ -369,15 +337,6 @@ export const useWorkflow = () => {
 
   // Check if a node is placed on top of a loop node
   const checkNodeOverLoopNode = useMemoizedFn((node: Node) => {
-    if (!node) return;
-
-    // 获取所有与当前节点相交的节点
-    const intersections = getIntersectingNodes(node);
-    // 获取所有与当前节点相交的节点中，类型为 loop 的节点且它不能是折叠状态
-    const parentNode = intersections.find(
-      (item) => !item.data.isFolded && item.type === FlowNodeTypeEnum.loop
-    );
-
     const unSupportedTypes = [
       FlowNodeTypeEnum.workflowStart,
       FlowNodeTypeEnum.loop,
@@ -386,7 +345,16 @@ export const useWorkflow = () => {
       FlowNodeTypeEnum.systemConfig
     ];
 
-    if (parentNode && !node.data.parentNodeId) {
+    if (!node || node.data.parentNodeId) return;
+
+    // 获取所有与当前节点相交的节点
+    const intersections = getIntersectingNodes(node);
+    // 获取所有与当前节点相交的节点中，类型为 loop 的节点且它不能是折叠状态
+    const parentNode = intersections.find(
+      (item) => !item.data.isFolded && item.type === FlowNodeTypeEnum.loop
+    );
+
+    if (parentNode) {
       if (unSupportedTypes.includes(node.type as FlowNodeTypeEnum)) {
         return toast({
           status: 'warning',
@@ -404,49 +372,41 @@ export const useWorkflow = () => {
       setEdges((state) =>
         state.filter((edge) => edge.source !== node.id && edge.target !== node.id)
       );
-
-      const childNodes = [...nodes.filter((n) => n.data.parentNodeId === parentNode.id), node];
-      const rect = getNodesBounds(childNodes);
-      resetParentNodeSizeAndPosition(rect, parentNode.id);
     }
   });
 
   /* node */
-  const handleRemoveNode = useMemoizedFn((change: NodeRemoveChange, node: Node) => {
-    if (node.data.forbidDelete) {
-      toast({
-        status: 'warning',
-        title: t('common:core.workflow.Can not delete node')
-      });
-      return false;
-    }
-
+  // Remove change node and its child nodes and edges
+  const handleRemoveNode = useMemoizedFn((change: NodeRemoveChange, nodeId: string) => {
     // If the node has child nodes, remove the child nodes
-    if (nodes.some((n) => n.data.parentNodeId === node.id)) {
-      const childNodes = nodes.filter((n) => n.data.parentNodeId === node.id);
-      const childNodeIds = childNodes.map((n) => n.id);
-      const childNodesChange = childNodes.map((node) => ({
-        ...change,
-        id: node.id
-      }));
-      onNodesChange(childNodesChange);
-      setEdges((state) =>
-        state.filter(
-          (edge) =>
-            edge.source !== change.id &&
-            edge.target !== change.id &&
-            !childNodeIds.includes(edge.source) &&
-            !childNodeIds.includes(edge.target)
-        )
+    const deletedNodeIdList = [nodeId];
+    const deletedEdgeIdList = edges
+      .filter((edge) => edge.source === nodeId || edge.target === nodeId)
+      .map((edge) => edge.id);
+
+    const childNodes = nodes.filter((n) => n.data.parentNodeId === nodeId);
+    if (childNodes.length > 0) {
+      const childNodeIds = childNodes.map((node) => node.id);
+      deletedNodeIdList.push(...childNodeIds);
+
+      const childEdges = edges.filter(
+        (edge) => childNodeIds.includes(edge.source) || childNodeIds.includes(edge.target)
       );
-      return;
+      deletedEdgeIdList.push(...childEdges.map((edge) => edge.id));
     }
 
-    setEdges((state) =>
-      state.filter((edge) => edge.source !== change.id && edge.target !== change.id)
+    onNodesChange(
+      deletedNodeIdList.map<NodeRemoveChange>((id) => ({
+        type: 'remove',
+        id
+      }))
     );
-
-    return true;
+    onEdgesChange(
+      deletedEdgeIdList.map<EdgeRemoveChange>((id) => ({
+        type: 'remove',
+        id
+      }))
+    );
   });
   const handleSelectNode = useMemoizedFn((change: NodeSelectionChange) => {
     // If the node is not selected and the Ctrl key is pressed, select the node
@@ -466,7 +426,7 @@ export const useWorkflow = () => {
         const childNodes = nodes.filter((n) => n.data.parentNodeId === parentId);
         checkNodeHelpLine(change, childNodes);
 
-        resetParentNodeSizeAndPosition(getNodesBounds(childNodes), parentId);
+        resetParentNodeSizeAndPosition(parentId);
       }
       // If node is parent node, move parent node and child nodes
       else if (parentNode[node.data.flowNodeType]) {
@@ -515,10 +475,20 @@ export const useWorkflow = () => {
     for (const change of changes) {
       if (change.type === 'remove') {
         const node = nodes.find((n) => n.id === change.id);
-        // 如果删除失败，则不继续执行
-        if (node && !handleRemoveNode(change, node)) {
-          return;
+        if (!node) continue;
+
+        const parentNodeDeleted = changes.find(
+          (c) => c.type === 'remove' && c.id === node?.data.parentNodeId
+        );
+        // Forbidden delete && Parents are not deleted together
+        if (node.data.forbidDelete && !parentNodeDeleted) {
+          toast({
+            status: 'warning',
+            title: t('common:core.workflow.Can not delete node')
+          });
+          continue;
         }
+        handleRemoveNode(change, node.id);
       } else if (change.type === 'select') {
         handleSelectNode(change);
       } else if (change.type === 'position') {
@@ -529,15 +499,20 @@ export const useWorkflow = () => {
       }
     }
 
-    // default changes
-    onNodesChange(changes);
+    // Remove separately
+    onNodesChange(changes.filter((c) => c.type !== 'remove'));
   });
 
   const handleEdgeChange = useCallback(
     (changes: EdgeChange[]) => {
-      onEdgesChange(changes);
+      // If any node is selected, don't remove edges
+      const changesFiltered = changes.filter(
+        (change) => !(change.type === 'remove' && nodes.some((node) => node.selected))
+      );
+
+      onEdgesChange(changesFiltered);
     },
-    [onEdgesChange]
+    [nodes, onEdgesChange]
   );
 
   const onNodeDragStop = useCallback(
@@ -580,8 +555,36 @@ export const useWorkflow = () => {
           state
         )
       );
+
+      // Add default input
+      const node = nodeList.find((n) => n.nodeId === connect.target);
+      if (!node) return;
+
+      // 1. Add file input
+      if (
+        node.flowNodeType === FlowNodeTypeEnum.chatNode ||
+        node.flowNodeType === FlowNodeTypeEnum.tools ||
+        node.flowNodeType === FlowNodeTypeEnum.appModule
+      ) {
+        const input = node.inputs.find((i) => i.key === NodeInputKeyEnum.fileUrlList);
+        if (input && (!input?.value || input.value.length === 0)) {
+          const workflowStartNode = nodeList.find(
+            (n) => n.flowNodeType === FlowNodeTypeEnum.workflowStart
+          );
+          if (!workflowStartNode) return;
+          onChangeNode({
+            nodeId: node.nodeId,
+            type: 'updateInput',
+            key: NodeInputKeyEnum.fileUrlList,
+            value: {
+              ...input,
+              value: [[workflowStartNode.nodeId, NodeOutputKeyEnum.userFiles]]
+            }
+          });
+        }
+      }
     },
-    [setEdges]
+    [nodeList, onChangeNode, setEdges]
   );
   const customOnConnect = useCallback(
     (connect: Connection) => {
@@ -599,7 +602,7 @@ export const useWorkflow = () => {
         connect
       });
     },
-    [onConnect, t, toast, nodes]
+    [onConnect, t, toast]
   );
 
   /* edge */
@@ -613,6 +616,41 @@ export const useWorkflow = () => {
     setHoverEdgeId(undefined);
   }, [setHoverEdgeId]);
 
+  // context menu
+  const onPaneContextMenu = useCallback(
+    (e: any) => {
+      // Prevent native context menu from showing
+      e.preventDefault();
+
+      setMenu({
+        top: e.clientY - 64,
+        left: e.clientX - 12
+      });
+    },
+    [setMenu]
+  );
+
+  const onPaneClick = useCallback(() => {
+    setMenu(null);
+  }, [setMenu]);
+
+  // Watch
+  // Auto save snapshot
+  useDebounceEffect(
+    () => {
+      if (nodes.length === 0 || !appDetail.chatConfig) return;
+
+      pushPastSnapshot({
+        pastNodes: nodes,
+        pastEdges: edges,
+        customTitle: formatTime2YMDHMS(new Date()),
+        chatConfig: appDetail.chatConfig
+      });
+    },
+    [nodes, edges, appDetail.chatConfig],
+    { wait: 500 }
+  );
+
   return {
     handleNodesChange,
     handleEdgeChange,
@@ -624,7 +662,9 @@ export const useWorkflow = () => {
     onEdgeMouseLeave,
     helperLineHorizontal,
     helperLineVertical,
-    onNodeDragStop
+    onNodeDragStop,
+    onPaneContextMenu,
+    onPaneClick
   };
 };
 

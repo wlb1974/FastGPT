@@ -22,19 +22,28 @@ const CodeLight = dynamic(() => import('./CodeLight'), { ssr: false });
 const MermaidCodeBlock = dynamic(() => import('./img/MermaidCodeBlock'), { ssr: false });
 const MdImage = dynamic(() => import('./img/Image'), { ssr: false });
 const EChartsCodeBlock = dynamic(() => import('./img/EChartsCodeBlock'), { ssr: false });
+const IframeCodeBlock = dynamic(() => import('./codeBlock/Iframe'), { ssr: false });
+const IframeHtmlCodeBlock = dynamic(() => import('./codeBlock/iframe-html'), { ssr: false });
 
 const ChatGuide = dynamic(() => import('./chat/Guide'), { ssr: false });
 const QuestionGuide = dynamic(() => import('./chat/QuestionGuide'), { ssr: false });
 
-const Markdown = ({
-  source = '',
-  showAnimation = false,
-  isDisabled = false
-}: {
+type Props = {
   source?: string;
   showAnimation?: boolean;
   isDisabled?: boolean;
-}) => {
+  forbidZhFormat?: boolean;
+};
+const Markdown = (props: Props) => {
+  const source = props.source || '';
+
+  if (source.length < 200000) {
+    return <MarkdownRender {...props} />;
+  }
+
+  return <Box whiteSpace={'pre-wrap'}>{source}</Box>;
+};
+const MarkdownRender = ({ source = '', showAnimation, isDisabled, forbidZhFormat }: Props) => {
   const components = useMemo<any>(
     () => ({
       img: Image,
@@ -46,15 +55,35 @@ const Markdown = ({
   );
 
   const formatSource = useMemo(() => {
-    const formatSource = source
+    if (showAnimation || forbidZhFormat) return source;
+
+    // 保护 URL 格式：https://, http://, /api/xxx
+    const urlPlaceholders: string[] = [];
+    const textWithProtectedUrls = source.replace(
+      /(https?:\/\/[^\s<]+[^<.,:;"')\]\s]|\/api\/[^\s]+)(?=\s|$)/g,
+      (match) => {
+        urlPlaceholders.push(match);
+        return `__URL_${urlPlaceholders.length - 1}__`;
+      }
+    );
+
+    // 处理中文与英文数字之间的分词
+    const textWithSpaces = textWithProtectedUrls
       .replace(
         /([\u4e00-\u9fa5\u3000-\u303f])([a-zA-Z0-9])|([a-zA-Z0-9])([\u4e00-\u9fa5\u3000-\u303f])/g,
         '$1$3 $2$4'
-      ) // Chinese and english chars separated by space
+      )
+      // 处理引用标记
       .replace(/\n*(\[QUOTE SIGN\]\(.*\))/g, '$1');
 
-    return formatSource;
-  }, [source]);
+    // 还原 URL
+    const finalText = textWithSpaces.replace(
+      /__URL_(\d+)__/g,
+      (_, index) => urlPlaceholders[parseInt(index)]
+    );
+
+    return finalText;
+  }, [forbidZhFormat, showAnimation, source]);
 
   const urlTransform = useCallback((val: string) => {
     return val;
@@ -100,6 +129,16 @@ function Code(e: any) {
     }
     if (codeType === CodeClassNameEnum.echarts) {
       return <EChartsCodeBlock code={strChildren} />;
+    }
+    if (codeType === CodeClassNameEnum.iframe) {
+      return <IframeCodeBlock code={strChildren} />;
+    }
+    if (codeType && codeType.toLowerCase() === CodeClassNameEnum.html) {
+      return (
+        <IframeHtmlCodeBlock className={className} codeBlock={codeBlock} match={match}>
+          {children}
+        </IframeHtmlCodeBlock>
+      );
     }
 
     return (

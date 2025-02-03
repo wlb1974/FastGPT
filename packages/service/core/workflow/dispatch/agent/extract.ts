@@ -3,10 +3,11 @@ import { filterGPTMessageByMaxTokens, loadRequestMessages } from '../../../chat/
 import type { ChatItemType } from '@fastgpt/global/core/chat/type.d';
 import {
   countMessagesTokens,
-  countGptMessagesTokens
+  countGptMessagesTokens,
+  countPromptTokens
 } from '../../../../common/string/tiktoken/index';
 import { ChatItemValueTypeEnum, ChatRoleEnum } from '@fastgpt/global/core/chat/constants';
-import { getAIApi } from '../../../ai/config';
+import { createChatCompletion } from '../../../ai/config';
 import type { ContextExtractAgentItemType } from '@fastgpt/global/core/workflow/template/system/contextExtract/type';
 import { NodeInputKeyEnum, NodeOutputKeyEnum } from '@fastgpt/global/core/workflow/constants';
 import { DispatchNodeResponseKeyEnum } from '@fastgpt/global/core/workflow/runtime/constants';
@@ -46,7 +47,7 @@ const agentFunName = 'request_function';
 
 export async function dispatchContentExtract(props: Props): Promise<Response> {
   const {
-    user,
+    externalProvider,
     node: { name },
     histories,
     params: { content, history = 6, model, description, extractKeys }
@@ -59,7 +60,7 @@ export async function dispatchContentExtract(props: Props): Promise<Response> {
   const extractModel = getLLMModel(model);
   const chatHistories = getHistories(history, histories);
 
-  const { arg, tokens } = await (async () => {
+  const { arg, inputTokens, outputTokens } = await (async () => {
     if (extractModel.toolChoice) {
       return toolChoice({
         ...props,
@@ -114,7 +115,8 @@ export async function dispatchContentExtract(props: Props): Promise<Response> {
 
   const { totalPoints, modelName } = formatModelChars2Points({
     model: extractModel.model,
-    tokens,
+    inputTokens: inputTokens,
+    outputTokens: outputTokens,
     modelType: ModelTypeEnum.llm
   });
 
@@ -123,10 +125,11 @@ export async function dispatchContentExtract(props: Props): Promise<Response> {
     [NodeOutputKeyEnum.contextExtractFields]: JSON.stringify(arg),
     ...arg,
     [DispatchNodeResponseKeyEnum.nodeResponse]: {
-      totalPoints: user.openaiAccount?.key ? 0 : totalPoints,
+      totalPoints: externalProvider.openaiAccount?.key ? 0 : totalPoints,
       model: modelName,
       query: content,
-      tokens,
+      inputTokens,
+      outputTokens,
       extractDescription: description,
       extractResult: arg,
       contextTotalLen: chatHistories.length + 2
@@ -134,9 +137,10 @@ export async function dispatchContentExtract(props: Props): Promise<Response> {
     [DispatchNodeResponseKeyEnum.nodeDispatchUsages]: [
       {
         moduleName: name,
-        totalPoints: user.openaiAccount?.key ? 0 : totalPoints,
+        totalPoints: externalProvider.openaiAccount?.key ? 0 : totalPoints,
         model: modelName,
-        tokens
+        inputTokens,
+        outputTokens
       }
     ]
   };
@@ -211,7 +215,7 @@ ${description ? `- ${description}` : ''}
 };
 
 const toolChoice = async (props: ActionProps) => {
-  const { user, extractModel } = props;
+  const { externalProvider, extractModel } = props;
 
   const { filterMessages, agentFunction } = await getFunctionCallSchema(props);
 
@@ -222,13 +226,8 @@ const toolChoice = async (props: ActionProps) => {
     }
   ];
 
-  const ai = getAIApi({
-    userKey: user.openaiAccount,
-    timeout: 480000
-  });
-
-  const response = await ai.chat.completions.create(
-    llmCompletionsBodyFormat(
+  const { response } = await createChatCompletion({
+    body: llmCompletionsBodyFormat(
       {
         model: extractModel.model,
         temperature: 0.01,
@@ -237,13 +236,14 @@ const toolChoice = async (props: ActionProps) => {
         tool_choice: { type: 'function', function: { name: agentFunName } }
       },
       extractModel
-    )
-  );
+    ),
+    userKey: externalProvider.openaiAccount
+  });
 
   const arg: Record<string, any> = (() => {
     try {
       return json5.parse(
-        response?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments || '{}'
+        response?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments || ''
       );
     } catch (error) {
       console.log(agentFunction.parameters);
@@ -253,32 +253,30 @@ const toolChoice = async (props: ActionProps) => {
     }
   })();
 
-  const completeMessages: ChatCompletionMessageParam[] = [
-    ...filterMessages,
+  const AIMessages: ChatCompletionMessageParam[] = [
     {
       role: ChatCompletionRequestMessageRoleEnum.Assistant,
       tool_calls: response.choices?.[0]?.message?.tool_calls
     }
   ];
+
+  const inputTokens = await countGptMessagesTokens(filterMessages, tools);
+  const outputTokens = await countGptMessagesTokens(AIMessages);
   return {
-    tokens: await countGptMessagesTokens(completeMessages, tools),
+    inputTokens,
+    outputTokens,
     arg
   };
 };
 
 const functionCall = async (props: ActionProps) => {
-  const { user, extractModel } = props;
+  const { externalProvider, extractModel } = props;
 
   const { agentFunction, filterMessages } = await getFunctionCallSchema(props);
   const functions: ChatCompletionCreateParams.Function[] = [agentFunction];
 
-  const ai = getAIApi({
-    userKey: user.openaiAccount,
-    timeout: 480000
-  });
-
-  const response = await ai.chat.completions.create(
-    llmCompletionsBodyFormat(
+  const { response } = await createChatCompletion({
+    body: llmCompletionsBodyFormat(
       {
         model: extractModel.model,
         temperature: 0.01,
@@ -289,22 +287,27 @@ const functionCall = async (props: ActionProps) => {
         functions
       },
       extractModel
-    )
-  );
+    ),
+    userKey: externalProvider.openaiAccount
+  });
 
   try {
     const arg = JSON.parse(response?.choices?.[0]?.message?.function_call?.arguments || '');
-    const completeMessages: ChatCompletionMessageParam[] = [
-      ...filterMessages,
+
+    const AIMessages: ChatCompletionMessageParam[] = [
       {
         role: ChatCompletionRequestMessageRoleEnum.Assistant,
         function_call: response.choices?.[0]?.message?.function_call
       }
     ];
 
+    const inputTokens = await countGptMessagesTokens(filterMessages, undefined, functions);
+    const outputTokens = await countGptMessagesTokens(AIMessages);
+
     return {
       arg,
-      tokens: await countGptMessagesTokens(completeMessages, undefined, functions)
+      inputTokens,
+      outputTokens
     };
   } catch (error) {
     console.log(response.choices?.[0]?.message);
@@ -313,14 +316,15 @@ const functionCall = async (props: ActionProps) => {
 
     return {
       arg: {},
-      tokens: 0
+      inputTokens: 0,
+      outputTokens: 0
     };
   }
 };
 
 const completions = async ({
   extractModel,
-  user,
+  externalProvider,
   histories,
   params: { content, extractKeys, description = 'No special requirements' }
 }: ActionProps) => {
@@ -358,12 +362,8 @@ Human: ${content}`
     useVision: false
   });
 
-  const ai = getAIApi({
-    userKey: user.openaiAccount,
-    timeout: 480000
-  });
-  const data = await ai.chat.completions.create(
-    llmCompletionsBodyFormat(
+  const { response: data } = await createChatCompletion({
+    body: llmCompletionsBodyFormat(
       {
         model: extractModel.model,
         temperature: 0.01,
@@ -371,8 +371,9 @@ Human: ${content}`
         stream: false
       },
       extractModel
-    )
-  );
+    ),
+    userKey: externalProvider.openaiAccount
+  });
   const answer = data.choices?.[0].message?.content || '';
 
   // parse response
@@ -381,7 +382,8 @@ Human: ${content}`
   if (!jsonStr) {
     return {
       rawResponse: answer,
-      tokens: await countMessagesTokens(messages),
+      inputTokens: await countMessagesTokens(messages),
+      outputTokens: await countPromptTokens(answer),
       arg: {}
     };
   }
@@ -389,7 +391,8 @@ Human: ${content}`
   try {
     return {
       rawResponse: answer,
-      tokens: await countMessagesTokens(messages),
+      inputTokens: await countMessagesTokens(messages),
+      outputTokens: await countPromptTokens(answer),
       arg: json5.parse(jsonStr) as Record<string, any>
     };
   } catch (error) {
@@ -397,7 +400,8 @@ Human: ${content}`
     console.log(error);
     return {
       rawResponse: answer,
-      tokens: await countMessagesTokens(messages),
+      inputTokens: await countMessagesTokens(messages),
+      outputTokens: await countPromptTokens(answer),
       arg: {}
     };
   }

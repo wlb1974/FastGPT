@@ -25,7 +25,12 @@ const SaveButton = ({
 }) => {
   const { t } = useTranslation();
   const [isSave, setIsSave] = useState(false);
-  const { toast } = useToast();
+  const { toast } = useToast({
+    containerStyle: {
+      mt: '60px',
+      fontSize: 'sm'
+    }
+  });
 
   const {
     isOpen: isSaveAndPublishModalOpen,
@@ -72,7 +77,8 @@ const SaveButton = ({
               toast({
                 status: 'success',
                 title: t('app:saved_success'),
-                position: 'top-right'
+                position: 'top-right',
+                isClosable: true
               });
               onClose();
               setIsSave(false);

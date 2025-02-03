@@ -5,10 +5,26 @@ import type {
   LLMModelItemType,
   VectorModelItemType,
   AudioSpeechModels,
-  WhisperModelType,
+  STTModelType,
   ReRankModelItemType
 } from '../../../core/ai/model.d';
 import { SubTypeEnum } from '../../../support/wallet/sub/constants';
+
+export type NavbarItemType = {
+  id: string;
+  name: string;
+  avatar: string;
+  url: string;
+  isActive: boolean;
+};
+
+export type ExternalProviderWorkflowVarType = {
+  name: string;
+  key: string;
+  intro: string;
+  isOpen: boolean;
+  url?: string;
+};
 
 /* fastgpt main */
 export type FastGPTConfigFileType = {
@@ -19,12 +35,12 @@ export type FastGPTConfigFileType = {
   vectorModels: VectorModelItemType[];
   reRankModels: ReRankModelItemType[];
   audioSpeechModels: AudioSpeechModelType[];
-  whisperModel: WhisperModelType;
+  whisperModel: STTModelType;
 };
 
 export type FastGPTFeConfigsType = {
   show_emptyChat?: boolean;
-  register_method?: ['email' | 'phone'];
+  register_method?: ['email' | 'phone' | 'sync'];
   login_method?: ['email' | 'phone']; // Attention: login method is diffrent with oauth
   find_password_method?: ['email' | 'phone'];
   bind_notification_method?: ['email' | 'phone'];
@@ -38,7 +54,6 @@ export type FastGPTFeConfigsType = {
   concatMd?: string;
 
   docUrl?: string;
-  chatbotUrl?: string;
   openAPIDocUrl?: string;
   systemPluginCourseUrl?: string;
   appTemplateCourse?: string;
@@ -51,11 +66,22 @@ export type FastGPTFeConfigsType = {
     icon?: string;
     title?: string;
     url?: string;
+    autoLogin?: boolean;
   };
   oauth?: {
     github?: string;
     google?: string;
     wechat?: string;
+    dingtalk?: string;
+    wecom?: {
+      corpid?: string;
+      agentid?: string;
+    };
+    microsoft?: {
+      clientId?: string;
+      tenantId?: string;
+      customButton?: string;
+    };
   };
   limit?: {
     exportDatasetLimitMinutes?: number;
@@ -69,6 +95,8 @@ export type FastGPTFeConfigsType = {
   uploadFileMaxAmount?: number;
   uploadFileMaxSize?: number;
   lafEnv?: string;
+  navbarItems?: NavbarItemType[];
+  externalProviderWorkflowVariables?: ExternalProviderWorkflowVarType[];
 };
 
 export type SystemEnvType = {

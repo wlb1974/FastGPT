@@ -1,5 +1,5 @@
-import { useI18n } from '@/web/context/I18n';
-import { Box, Flex, Image } from '@chakra-ui/react';
+import { Box, Flex } from '@chakra-ui/react';
+import MyImage from '@fastgpt/web/components/common/Image/MyImage';
 import QuestionTip from '@fastgpt/web/components/common/MyTooltip/QuestionTip';
 import { useTranslation } from 'next-i18next';
 import React, { useRef } from 'react';
@@ -12,7 +12,8 @@ enum FnTypeEnum {
   welcome = 'welcome',
   file = 'file',
   visionModel = 'visionModel',
-  instruction = 'instruction'
+  instruction = 'instruction',
+  autoExec = 'autoExec'
 }
 
 const ChatFunctionTip = ({ type }: { type: `${FnTypeEnum}` }) => {
@@ -28,7 +29,7 @@ const ChatFunctionTip = ({ type }: { type: `${FnTypeEnum}` }) => {
     [FnTypeEnum.nextQuestion]: {
       icon: '/imgs/app/nextQuestion-icon.svg',
       title: t('common:core.app.Question Guide'),
-      desc: t('common:core.app.Question Guide Tip'),
+      desc: t('app:question_guide_tip'),
       imgUrl: '/imgs/app/nextQuestion.svg'
     },
     [FnTypeEnum.tts]: {
@@ -58,14 +59,20 @@ const ChatFunctionTip = ({ type }: { type: `${FnTypeEnum}` }) => {
     [FnTypeEnum.visionModel]: {
       icon: '/imgs/app/question.svg',
       title: t('app:vision_model_title'),
-      desc: t('app:llm_use_vision_tip'),
-      imgUrl: '/imgs/app/visionModel.png'
+      desc: t('app:open_vision_function_tip'),
+      imgUrl: '/imgs/app/visionModel.svg'
     },
     [FnTypeEnum.instruction]: {
       icon: '/imgs/app/help.svg',
       title: t('workflow:plugin.Instructions'),
       desc: t('workflow:plugin.Instruction_Tip'),
       imgUrl: '/imgs/app/instruction.svg'
+    },
+    [FnTypeEnum.autoExec]: {
+      icon: '/imgs/app/autoExec-icon.svg',
+      title: t('common:core.app.Auto execute'),
+      desc: t('app:auto_execute_tip'),
+      imgUrl: '/imgs/app/autoExec.svg'
     }
   });
   const data = map.current[type];
@@ -77,7 +84,7 @@ const ChatFunctionTip = ({ type }: { type: `${FnTypeEnum}` }) => {
       label={
         <Box pt={2}>
           <Flex alignItems={'flex-start'}>
-            <Image src={data.icon} w={'36px'} alt={''} />
+            <MyImage src={data.icon} w={'36px'} alt={''} />
             <Box ml={3}>
               <Box fontWeight="bold">{data.title}</Box>
               <Box fontSize={'xs'} color={'myGray.500'}>
@@ -85,7 +92,7 @@ const ChatFunctionTip = ({ type }: { type: `${FnTypeEnum}` }) => {
               </Box>
             </Box>
           </Flex>
-          <Image src={data.imgUrl} w={'100%'} minH={['auto', '250px']} mt={2} alt={''} />
+          <MyImage src={data.imgUrl} w={'100%'} minH={['auto', '250px']} mt={2} alt={''} />
         </Box>
       }
     />

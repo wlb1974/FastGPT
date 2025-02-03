@@ -96,18 +96,18 @@ const LafAccountModal = ({
   });
 
   return (
-    <MyModal isOpen iconSrc="/imgs/workflow/laf.png" title={t('common:user.Laf Account Setting')}>
+    <MyModal isOpen iconSrc="support/account/laf" title={t('common:user.Laf Account Setting')}>
       <ModalBody>
         <Box fontSize={'sm'} color={'myGray.500'}>
           <Box>{t('common:support.user.Laf account intro')}</Box>
           <Box textDecoration={'underline'}>
-            <Link href={getDocPath('/docs/workflow/modules/laf/')} isExternal>
+            <Link href={getDocPath('/docs/guide/workbench/workflow/laf/')} isExternal>
               {t('common:support.user.Laf account course')}
             </Link>
           </Box>
           <Box>
             <Link textDecoration={'underline'} href={`${feConfigs.lafEnv}/`} isExternal>
-              {t('support.user.Go laf env', {
+              {t('common:support.user.Go laf env', {
                 env: feConfigs.lafEnv?.split('//')[1]
               })}
             </Link>

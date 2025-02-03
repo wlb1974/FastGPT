@@ -1,27 +1,17 @@
-import {
-  Box,
-  Flex,
-  Grid,
-  NumberDecrementStepper,
-  NumberInput,
-  NumberIncrementStepper,
-  NumberInputField,
-  NumberInputStepper,
-  Button
-} from '@chakra-ui/react';
+import { Box, Flex, Grid, Button, VStack } from '@chakra-ui/react';
 import { useTranslation } from 'next-i18next';
 import React, { useCallback, useState } from 'react';
 import { useSystemStore } from '@/web/common/system/useSystemStore';
 import MyIcon from '@fastgpt/web/components/common/Icon';
-import { useRouter } from 'next/router';
 import { useForm } from 'react-hook-form';
 import { useToast } from '@fastgpt/web/hooks/useToast';
 import { getErrText } from '@fastgpt/global/common/error/utils';
 import { getWxPayQRCode } from '@/web/support/wallet/bill/api';
 import { BillTypeEnum } from '@fastgpt/global/support/wallet/bill/constants';
 import QRCodePayModal, { type QRPayProps } from '@/components/support/wallet/QRCodePayModal';
+import MyNumberInput from '@fastgpt/web/components/common/Input/NumberInput';
 
-const ExtraPlan = () => {
+const ExtraPlan = ({ onPaySuccess }: { onPaySuccess?: () => void }) => {
   const { t } = useTranslation();
   const { toast } = useToast();
   const { subPlans } = useSystemStore();
@@ -118,19 +108,8 @@ const ExtraPlan = () => {
   );
 
   return (
-    <Flex
-      mt={['40px', '200px']}
-      flexDirection={'column'}
-      alignItems={'center'}
-      position={'relative'}
-    >
-      <Box id={'extra-plan'} fontWeight={'bold'} fontSize={['24px', '36px']} color={'myGray.900'}>
-        {t('common:support.wallet.subscription.Extra plan')}
-      </Box>
-      <Box mt={2} mb={8} color={'myGray.600'} fontSize={'md'}>
-        {t('common:support.wallet.subscription.Extra plan tip')}
-      </Box>
-      <Grid mt={8} gridTemplateColumns={['1fr', '1fr 1fr']} gap={5} w={['100%', 'auto']}>
+    <VStack>
+      <Grid gridTemplateColumns={['1fr', '1fr 1fr']} gap={5} w={['100%', 'auto']}>
         <Box
           bg={'rgba(255, 255, 255, 0.90)'}
           px={'32px'}
@@ -171,22 +150,14 @@ const ExtraPlan = () => {
                 {t('common:support.wallet.subscription.Month amount')}
               </Box>
               <Flex alignItems={'center'} mt={1} w={'180px'} position={'relative'}>
-                <NumberInput size={'sm'} flex={1} step={1} min={1} max={12} position={'relative'}>
-                  <NumberInputField
-                    pr={'30px'}
-                    {...registerDatasetSize('month', {
-                      required: true,
-                      min: 1,
-                      max: 12,
-                      valueAsNumber: true
-                    })}
-                  />
-                  <NumberInputStepper>
-                    <NumberIncrementStepper />
-                    <NumberDecrementStepper />
-                  </NumberInputStepper>
-                </NumberInput>
-                <Box position={'absolute'} right={'20px'} color={'myGray.600'} fontSize={'xs'}>
+                <MyNumberInput
+                  name="month"
+                  register={registerDatasetSize}
+                  min={1}
+                  max={12}
+                  size={'sm'}
+                />
+                <Box position={'absolute'} right={'30px'} color={'myGray.600'} fontSize={'xs'}>
                   {t('common:common.month')}
                 </Box>
               </Flex>
@@ -196,30 +167,14 @@ const ExtraPlan = () => {
                 {t('common:support.wallet.subscription.Update extra dataset size')}
               </Box>
               <Flex alignItems={'center'} mt={1} w={'180px'} position={'relative'}>
-                <NumberInput
-                  size={'sm'}
-                  flex={1}
+                <MyNumberInput
+                  name="datasetSize"
+                  register={registerDatasetSize}
                   min={0}
                   max={10000}
-                  step={1}
-                  position={'relative'}
-                >
-                  <NumberInputField
-                    pr={'30px'}
-                    {...registerDatasetSize('datasetSize', {
-                      required: true,
-                      min: 0,
-                      max: 10000,
-                      valueAsNumber: true
-                    })}
-                    step={1}
-                  />
-                  <NumberInputStepper>
-                    <NumberIncrementStepper />
-                    <NumberDecrementStepper />
-                  </NumberInputStepper>
-                </NumberInput>
-                <Box position={'absolute'} right={'20px'} color={'myGray.600'} fontSize={'xs'}>
+                  size={'sm'}
+                />
+                <Box position={'absolute'} right={'30px'} color={'myGray.600'} fontSize={'xs'}>
                   000{t('common:core.dataset.data.unit')}
                 </Box>
               </Flex>
@@ -272,31 +227,15 @@ const ExtraPlan = () => {
               <MyIcon mr={2} name={'support/bill/shoppingCart'} w={'16px'} color={'primary.600'} />
               {t('common:support.wallet.buy_resource')}
             </Flex>
-            {/* <Flex mt={4} alignItems={'center'}>
-              <Box flex={['0 0 100px', '1 0 0']}>
+            <Flex mt={4} alignItems={'center'}>
+              <Box flex={['0 0 100px', '1 0 0']} color={'myGray.600'}>
                 {t('common:support.wallet.subscription.Month amount')}
               </Box>
               <Flex alignItems={'center'} mt={1} w={'180px'} position={'relative'}>
-                <NumberInput size={'sm'} flex={1} step={1} min={1} max={12} position={'relative'}>
-                  <NumberInputField
-                    pr={'30px'}
-                    {...registerExtraPoints('month', {
-                      required: true,
-                      min: 1,
-                      max: 12,
-                      valueAsNumber: true
-                    })}
-                  />
-                  <NumberInputStepper>
-                    <NumberIncrementStepper />
-                    <NumberDecrementStepper />
-                  </NumberInputStepper>
-                </NumberInput>
-                <Box position={'absolute'} right={'20px'} color={'myGray.500'} fontSize={'xs'}>
-                  {t('common:common.month')}
-                </Box>
+                <Box>1</Box>
+                <Box color={'myGray.600'}>{t('common:common.month')}</Box>
               </Flex>
-            </Flex> */}
+            </Flex>
             <Flex mt={4} alignItems={'center'}>
               <Box flex={['0 0 100px', '1 0 0']} color={'myGray.600'}>
                 {t('common:support.wallet.subscription.Update extra ai points')}
@@ -308,30 +247,14 @@ const ExtraPlan = () => {
                 position={'relative'}
                 color={'myGray.500'}
               >
-                <NumberInput
-                  size={'sm'}
-                  flex={1}
+                <MyNumberInput
+                  name="points"
+                  register={registerExtraPoints}
                   min={0}
                   max={10000}
-                  step={1}
-                  position={'relative'}
-                >
-                  <NumberInputField
-                    pr={'30px'}
-                    step={1}
-                    {...registerExtraPoints('points', {
-                      required: true,
-                      min: 0,
-                      max: 10000,
-                      valueAsNumber: true
-                    })}
-                  />
-                  <NumberInputStepper>
-                    <NumberIncrementStepper />
-                    <NumberDecrementStepper />
-                  </NumberInputStepper>
-                </NumberInput>
-                <Box position={'absolute'} right={'20px'} color={'myGray.500'} fontSize={'xs'}>
+                  size={'sm'}
+                />
+                <Box position={'absolute'} right={'30px'} color={'myGray.500'} fontSize={'xs'}>
                   {'000' + t('common:support.wallet.subscription.point')}
                 </Box>
               </Flex>
@@ -350,8 +273,8 @@ const ExtraPlan = () => {
         </Box>
       </Grid>
 
-      {!!qrPayData && <QRCodePayModal {...qrPayData} />}
-    </Flex>
+      {!!qrPayData && <QRCodePayModal onSuccess={onPaySuccess} {...qrPayData} />}
+    </VStack>
   );
 };
 

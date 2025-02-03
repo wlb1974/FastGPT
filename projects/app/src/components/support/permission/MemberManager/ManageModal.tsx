@@ -1,29 +1,19 @@
-import {
-  ModalBody,
-  Table,
-  TableContainer,
-  Tbody,
-  Th,
-  Thead,
-  Tr,
-  Td,
-  Box,
-  Flex
-} from '@chakra-ui/react';
+import { useUserStore } from '@/web/support/user/useUserStore';
+import { Flex, ModalBody, Table, TableContainer, Tbody, Td, Th, Thead, Tr } from '@chakra-ui/react';
+import type { RequireOnlyOne } from '@fastgpt/global/common/type/utils';
+import { DefaultGroupName } from '@fastgpt/global/support/user/team/group/constant';
+import Avatar from '@fastgpt/web/components/common/Avatar';
+import EmptyTip from '@fastgpt/web/components/common/EmptyTip';
+import MyIcon from '@fastgpt/web/components/common/Icon';
+import Loading from '@fastgpt/web/components/common/MyLoading';
 import MyModal from '@fastgpt/web/components/common/MyModal';
+import { useRequest2 } from '@fastgpt/web/hooks/useRequest';
+import { useTranslation } from 'next-i18next';
 import React from 'react';
 import { useContextSelector } from 'use-context-selector';
 import PermissionSelect from './PermissionSelect';
 import PermissionTags from './PermissionTags';
-import Avatar from '@fastgpt/web/components/common/Avatar';
 import { CollaboratorContext } from './context';
-import MyIcon from '@fastgpt/web/components/common/Icon';
-import { useRequest, useRequest2 } from '@fastgpt/web/hooks/useRequest';
-import { PermissionValueType } from '@fastgpt/global/support/permission/type';
-import { useUserStore } from '@/web/support/user/useUserStore';
-import EmptyTip from '@fastgpt/web/components/common/EmptyTip';
-import Loading from '@fastgpt/web/components/common/MyLoading';
-import { useTranslation } from 'next-i18next';
 export type ManageModalProps = {
   onClose: () => void;
 };
@@ -34,17 +24,9 @@ function ManageModal({ onClose }: ManageModalProps) {
   const { permission, collaboratorList, onUpdateCollaborators, onDelOneCollaborator } =
     useContextSelector(CollaboratorContext, (v) => v);
 
-  const { runAsync: onDelete, loading: isDeleting } = useRequest2((tmbId: string) =>
-    onDelOneCollaborator(tmbId)
-  );
+  const { runAsync: onDelete, loading: isDeleting } = useRequest2(onDelOneCollaborator);
 
-  const { mutate: onUpdate, isLoading: isUpdating } = useRequest({
-    mutationFn: ({ tmbId, per }: { tmbId: string; per: PermissionValueType }) => {
-      return onUpdateCollaborators({
-        tmbIds: [tmbId],
-        permission: per
-      });
-    },
+  const { runAsync: onUpdate, loading: isUpdating } = useRequest2(onUpdateCollaborators, {
     successToast: t('common.Update Success'),
     errorToast: 'Error'
   });
@@ -83,8 +65,8 @@ function ManageModal({ onClose }: ManageModalProps) {
                   >
                     <Td border="none">
                       <Flex alignItems="center">
-                        <Avatar src={item.avatar} w="24px" mr={2} />
-                        {item.name}
+                        <Avatar src={item.avatar} rounded={'50%'} w="24px" mr={2} />
+                        {item.name === DefaultGroupName ? userInfo?.team.teamName : item.name}
                       </Flex>
                     </Td>
                     <Td border="none">
@@ -99,14 +81,24 @@ function ManageModal({ onClose }: ManageModalProps) {
                               <MyIcon name={'edit'} w={'16px'} _hover={{ color: 'primary.600' }} />
                             }
                             value={item.permission.value}
-                            onChange={(per) => {
+                            onChange={(permission) => {
                               onUpdate({
-                                tmbId: item.tmbId,
-                                per
+                                members: item.tmbId ? [item.tmbId] : undefined,
+                                groups: item.groupId ? [item.groupId] : undefined,
+                                orgs: item.orgId ? [item.orgId] : undefined,
+                                permission
                               });
                             }}
                             onDelete={() => {
-                              onDelete(item.tmbId);
+                              onDelete({
+                                tmbId: item.tmbId,
+                                groupId: item.groupId,
+                                orgId: item.orgId
+                              } as RequireOnlyOne<{
+                                tmbId: string;
+                                groupId: string;
+                                orgId: string;
+                              }>);
                             }}
                           />
                         )}

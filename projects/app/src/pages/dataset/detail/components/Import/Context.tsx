@@ -86,6 +86,10 @@ const DatasetImportContextProvider = ({ children }: { children: React.ReactNode 
 
   // step
   const modeSteps: Record<ImportDataSourceEnum, { title: string }[]> = {
+    [ImportDataSourceEnum.reTraining]: [
+      { title: t('dataset:core.dataset.import.Adjust parameters') },
+      { title: t('common:core.dataset.import.Upload data') }
+    ],
     [ImportDataSourceEnum.fileLocal]: [
       {
         title: t('common:core.dataset.import.Select file')
@@ -140,6 +144,17 @@ const DatasetImportContextProvider = ({ children }: { children: React.ReactNode 
       {
         title: t('common:core.dataset.import.Upload data')
       }
+    ],
+    [ImportDataSourceEnum.apiDataset]: [
+      {
+        title: t('common:core.dataset.import.Select file')
+      },
+      {
+        title: t('common:core.dataset.import.Data Preprocessing')
+      },
+      {
+        title: t('common:core.dataset.import.Upload data')
+      }
     ]
   };
   const steps = modeSteps[source];
@@ -181,8 +196,8 @@ const DatasetImportContextProvider = ({ children }: { children: React.ReactNode 
       chunkSize: vectorModel?.defaultToken ? vectorModel?.defaultToken * 2 : 1024,
       showChunkInput: false,
       showPromptInput: false,
-      charsPointsPrice: agentModel.charsPointsPrice,
-      priceTip: t('common:core.dataset.import.Auto mode Estimated Price Tips', {
+      charsPointsPrice: agentModel.charsPointsPrice || 0,
+      priceTip: t('dataset:import.Auto mode Estimated Price Tips', {
         price: agentModel.charsPointsPrice
       }),
       uploadRate: 100
@@ -196,8 +211,8 @@ const DatasetImportContextProvider = ({ children }: { children: React.ReactNode 
       chunkSize: embeddingChunkSize,
       showChunkInput: true,
       showPromptInput: false,
-      charsPointsPrice: vectorModel.charsPointsPrice,
-      priceTip: t('common:core.dataset.import.Embedding Estimated Price Tips', {
+      charsPointsPrice: vectorModel.charsPointsPrice || 0,
+      priceTip: t('dataset:import.Embedding Estimated Price Tips', {
         price: vectorModel.charsPointsPrice
       }),
       uploadRate: 150
@@ -211,9 +226,9 @@ const DatasetImportContextProvider = ({ children }: { children: React.ReactNode 
       chunkSize: qaChunkSize,
       showChunkInput: true,
       showPromptInput: true,
-      charsPointsPrice: agentModel.charsPointsPrice,
-      priceTip: t('common:core.dataset.import.QA Estimated Price Tips', {
-        price: agentModel?.charsPointsPrice
+      charsPointsPrice: agentModel.charsPointsPrice || 0,
+      priceTip: t('dataset:import.Auto mode Estimated Price Tips', {
+        price: agentModel.charsPointsPrice
       }),
       uploadRate: 30
     }
@@ -254,8 +269,6 @@ const DatasetImportContextProvider = ({ children }: { children: React.ReactNode 
               icon={<MyIcon name={'common/backFill'} w={'14px'} />}
               aria-label={''}
               size={'smSquare'}
-              w={'26px'}
-              h={'26px'}
               borderRadius={'50%'}
               variant={'whiteBase'}
               mr={2}

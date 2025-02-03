@@ -5,13 +5,12 @@ import {
   Button,
   IconButton,
   HStack,
-  Modal,
   ModalBody,
   Checkbox,
   ModalFooter
 } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
-import { AppSchema } from '@fastgpt/global/core/app/type.d';
+import { AppSchema, AppSimpleEditFormType } from '@fastgpt/global/core/app/type.d';
 import { useTranslation } from 'next-i18next';
 import Avatar from '@fastgpt/web/components/common/Avatar';
 import MyIcon from '@fastgpt/web/components/common/Icon';
@@ -19,26 +18,28 @@ import TagsEditModal from '../TagsEditModal';
 import { useSystemStore } from '@/web/common/system/useSystemStore';
 import { AppContext } from '@/pages/app/detail/components/context';
 import { useContextSelector } from 'use-context-selector';
-import PermissionIconText from '@/components/support/permission/IconText';
-import MyTag from '@fastgpt/web/components/common/Tag/index';
 import MyMenu from '@fastgpt/web/components/common/MyMenu';
-import { useI18n } from '@/web/context/I18n';
 import MyModal from '@fastgpt/web/components/common/MyModal';
 import { useRequest2 } from '@fastgpt/web/hooks/useRequest';
 import { postTransition2Workflow } from '@/web/core/app/api/app';
-import { AppTypeEnum } from '@fastgpt/global/core/app/constants';
-import { useSystem } from '@fastgpt/web/hooks/useSystem';
+import { form2AppWorkflow } from '@/web/core/app/utils';
+import { SimpleAppSnapshotType } from './useSnapshots';
+import ExportConfigPopover from '@/pageComponents/app/detail/ExportConfigPopover';
 
-const AppCard = () => {
+const AppCard = ({
+  appForm,
+  setPast
+}: {
+  appForm: AppSimpleEditFormType;
+  setPast: (value: React.SetStateAction<SimpleAppSnapshotType[]>) => void;
+}) => {
   const router = useRouter();
   const { t } = useTranslation();
-  const { appT } = useI18n();
-  const { isPc } = useSystem();
+  const onSaveApp = useContextSelector(AppContext, (v) => v.onSaveApp);
+  const appDetail = useContextSelector(AppContext, (v) => v.appDetail);
+  const onOpenInfoEdit = useContextSelector(AppContext, (v) => v.onOpenInfoEdit);
+  const onDelApp = useContextSelector(AppContext, (v) => v.onDelApp);
 
-  const { appDetail, setAppDetail, onOpenInfoEdit, onDelApp } = useContextSelector(
-    AppContext,
-    (v) => v
-  );
   const appId = appDetail._id;
   const { feConfigs } = useSystemStore();
   const [TeamTagsSet, setTeamTagsSet] = useState<AppSchema>();
@@ -46,7 +47,18 @@ const AppCard = () => {
   // transition to workflow
   const [transitionCreateNew, setTransitionCreateNew] = useState<boolean>();
   const { runAsync: onTransition, loading: transiting } = useRequest2(
-    () => postTransition2Workflow({ appId, createNew: transitionCreateNew }),
+    async () => {
+      const { nodes, edges } = form2AppWorkflow(appForm, t);
+      await onSaveApp({
+        nodes,
+        edges,
+        chatConfig: appForm.chatConfig,
+        isPublish: false,
+        versionName: t('app:transition_to_workflow')
+      });
+
+      return postTransition2Workflow({ appId, createNew: transitionCreateNew });
+    },
     {
       onSuccess: ({ id }) => {
         if (id) {
@@ -56,10 +68,8 @@ const AppCard = () => {
             }
           });
         } else {
-          setAppDetail((state) => ({
-            ...state,
-            type: AppTypeEnum.workflow
-          }));
+          setPast([]);
+          router.reload();
         }
       },
       successToast: t('common:common.Success')
@@ -88,7 +98,7 @@ const AppCard = () => {
         >
           {appDetail.intro || t('common:core.app.tip.Add a intro to app')}
         </Box>
-        <HStack alignItems={'flex-end'}>
+        <HStack alignItems={'center'}>
           <Button
             size={['sm', 'md']}
             variant={'whitePrimary'}
@@ -109,9 +119,10 @@ const AppCard = () => {
           )}
           {appDetail.permission.isOwner && (
             <MyMenu
+              size={'xs'}
               Button={
                 <IconButton
-                  variant={'whiteBase'}
+                  variant={'whitePrimary'}
                   size={['smSquare', 'mdSquare']}
                   icon={<MyIcon name={'more'} w={'1rem'} />}
                   aria-label={''}
@@ -121,8 +132,19 @@ const AppCard = () => {
                 {
                   children: [
                     {
+                      label: (
+                        <Flex>
+                          <ExportConfigPopover
+                            appName={appDetail.name}
+                            appForm={appForm}
+                            chatConfig={appDetail.chatConfig}
+                          />
+                        </Flex>
+                      )
+                    },
+                    {
                       icon: 'core/app/type/workflow',
-                      label: appT('transition_to_workflow'),
+                      label: t('app:transition_to_workflow'),
                       onClick: () => setTransitionCreateNew(true)
                     },
                     ...(appDetail.permission.hasWritePer && feConfigs?.show_team_chat
@@ -150,28 +172,28 @@ const AppCard = () => {
             />
           )}
           <Box flex={1} />
-          {isPc && (
-            <MyTag
-              type="borderFill"
-              colorSchema="gray"
-              onClick={() => (appDetail.permission.hasManagePer ? onOpenInfoEdit() : undefined)}
-            >
-              <PermissionIconText defaultPermission={appDetail.defaultPermission} />
-            </MyTag>
-          )}
+          {/* {isPc && ( */}
+          {/*   <MyTag */}
+          {/*     type="borderFill" */}
+          {/*     colorSchema="gray" */}
+          {/*     onClick={() => (appDetail.permission.hasManagePer ? onOpenInfoEdit() : undefined)} */}
+          {/*   > */}
+          {/*     <PermissionIconText defaultPermission={appDetail.defaultPermission} /> */}
+          {/*   </MyTag> */}
+          {/* )} */}
         </HStack>
       </Box>
       {TeamTagsSet && <TagsEditModal onClose={() => setTeamTagsSet(undefined)} />}
       {transitionCreateNew !== undefined && (
-        <MyModal isOpen title={appT('transition_to_workflow')} iconSrc="core/app/type/workflow">
+        <MyModal isOpen title={t('app:transition_to_workflow')} iconSrc="core/app/type/workflow">
           <ModalBody>
-            <Box mb={3}>{appT('transition_to_workflow_create_new_tip')}</Box>
+            <Box mb={3}>{t('app:transition_to_workflow_create_new_tip')}</Box>
             <HStack cursor={'pointer'} onClick={() => setTransitionCreateNew((state) => !state)}>
               <Checkbox
                 isChecked={transitionCreateNew}
                 icon={<MyIcon name={'common/check'} w={'12px'} />}
               />
-              <Box>{appT('transition_to_workflow_create_new_placeholder')}</Box>
+              <Box>{t('app:transition_to_workflow_create_new_placeholder')}</Box>
             </HStack>
           </ModalBody>
           <ModalFooter>

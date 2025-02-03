@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { resumeInheritPer } from '@/web/core/dataset/api';
+import { postChangeOwner, resumeInheritPer } from '@/web/core/dataset/api';
 import { Box, Flex, Grid, HStack } from '@chakra-ui/react';
 import { DatasetTypeEnum, DatasetTypeMap } from '@fastgpt/global/core/dataset/constants';
 import MyMenu from '@fastgpt/web/components/common/MyMenu';
@@ -11,17 +11,13 @@ import { useConfirm } from '@fastgpt/web/hooks/useConfirm';
 import { useRequest, useRequest2 } from '@fastgpt/web/hooks/useRequest';
 import { DatasetItemType } from '@fastgpt/global/core/dataset/type';
 import { useSystemStore } from '@/web/common/system/useSystemStore';
-import { useToast } from '@fastgpt/web/hooks/useToast';
 import { checkTeamExportDatasetLimit } from '@/web/support/user/team/api';
 import { downloadFetch } from '@/web/common/system/utils';
 import MyTooltip from '@fastgpt/web/components/common/MyTooltip';
 import dynamic from 'next/dynamic';
 import { useContextSelector } from 'use-context-selector';
 import { DatasetsContext } from '../context';
-import {
-  DatasetDefaultPermissionVal,
-  DatasetPermissionList
-} from '@fastgpt/global/support/permission/dataset/constant';
+import { DatasetPermissionList } from '@fastgpt/global/support/permission/dataset/constant';
 import ConfigPerModal from '@/components/support/permission/ConfigPerModal';
 import {
   deleteDatasetCollaborators,
@@ -31,22 +27,18 @@ import {
 import EmptyTip from '@fastgpt/web/components/common/EmptyTip';
 import { useFolderDrag } from '@/components/common/folder/useFolderDrag';
 import MyBox from '@fastgpt/web/components/common/MyBox';
-import { useI18n } from '@/web/context/I18n';
 import { useTranslation } from 'next-i18next';
-import { useUserStore } from '@/web/support/user/useUserStore';
-import { formatTimeToChatTime } from '@fastgpt/global/common/string/time';
 import { useSystem } from '@fastgpt/web/hooks/useSystem';
 import SideTag from './SideTag';
+import { getModelProvider } from '@fastgpt/global/core/ai/provider';
+import UserBox from '@fastgpt/web/components/common/UserBox';
 
 const EditResourceModal = dynamic(() => import('@/components/common/Modal/EditResourceModal'));
 
 function List() {
   const { setLoading } = useSystemStore();
-  const { toast } = useToast();
   const { isPc } = useSystem();
   const { t } = useTranslation();
-  const { commonT } = useI18n();
-  const { loadAndGetTeamMembers } = useUserStore();
   const {
     loadMyDatasets,
     setMoveDatasetId,
@@ -59,36 +51,39 @@ function List() {
     folderDetail
   } = useContextSelector(DatasetsContext, (v) => v);
   const [editPerDatasetIndex, setEditPerDatasetIndex] = useState<number>();
-  const [loadingDatasetId, setLoadingDatasetId] = useState<string>();
+  const router = useRouter();
+  const { parentId = null } = router.query as { parentId?: string | null };
+  const parentDataset = useMemo(
+    () => myDatasets.find((item) => String(item._id) === parentId),
+    [parentId, myDatasets]
+  );
+
+  const { openConfirm: openMoveConfirm, ConfirmModal: MoveConfirmModal } = useConfirm({
+    type: 'common',
+    title: t('common:move.confirm'),
+    content: t('dataset:move.hint')
+  });
+
+  const { runAsync: updateDataset } = useRequest2(onUpdateDataset);
 
   const { getBoxProps } = useFolderDrag({
     activeStyles: {
       borderColor: 'primary.600'
     },
-    onDrop: async (dragId: string, targetId: string) => {
-      setLoadingDatasetId(dragId);
-      try {
-        await onUpdateDataset({
+    onDrop: (dragId: string, targetId: string) => {
+      openMoveConfirm(() =>
+        updateDataset({
           id: dragId,
           parentId: targetId
-        });
-      } catch (error) {}
-      setLoadingDatasetId(undefined);
+        })
+      )();
     }
-  });
-
-  const { data: members = [] } = useRequest2(loadAndGetTeamMembers, {
-    manual: false
   });
 
   const editPerDataset = useMemo(
     () => (editPerDatasetIndex !== undefined ? myDatasets[editPerDatasetIndex] : undefined),
     [editPerDatasetIndex, myDatasets]
   );
-
-  const router = useRouter();
-
-  const { parentId = null } = router.query as { parentId?: string | null };
 
   const { mutate: exportDataset } = useRequest({
     mutationFn: async (dataset: DatasetItemType) => {
@@ -100,15 +95,10 @@ function List() {
         filename: `${dataset.name}.csv`
       });
     },
-    onSuccess() {
-      toast({
-        status: 'success',
-        title: t('common:core.dataset.Start export')
-      });
-    },
     onSettled() {
       setLoading(false);
     },
+    successToast: t('common:core.dataset.Start export'),
     errorToast: t('common:dataset.Export Dataset Limit Error')
   });
 
@@ -161,7 +151,8 @@ function List() {
           alignItems={'stretch'}
         >
           {formatDatasets.map((dataset, index) => {
-            const owner = members.find((v) => v.tmbId === dataset.tmbId);
+            const vectorModelAvatar = getModelProvider(dataset.vectorModel.provider)?.avatar;
+
             return (
               <MyTooltip
                 key={dataset._id}
@@ -176,7 +167,6 @@ function List() {
                 }
               >
                 <MyBox
-                  isLoading={loadingDatasetId === dataset._id}
                   display={'flex'}
                   flexDirection={'column'}
                   lineHeight={1.5}
@@ -269,31 +259,32 @@ function List() {
                     color={'myGray.500'}
                   >
                     <HStack spacing={3.5}>
-                      {owner && (
-                        <HStack spacing={1}>
-                          <Avatar src={owner.avatar} w={'0.875rem'} borderRadius={'50%'} />
-                          <Box maxW={'150px'} className="textEllipsis" fontSize={'mini'}>
-                            {owner.memberName}
-                          </Box>
-                        </HStack>
-                      )}
+                      <UserBox
+                        sourceMember={dataset.sourceMember}
+                        fontSize="xs"
+                        avatarSize="1rem"
+                        spacing={0.5}
+                      />
                       <PermissionIconText
+                        flexShrink={0}
+                        private={dataset.private}
                         iconColor="myGray.400"
-                        defaultPermission={dataset.defaultPermission}
                         color={'myGray.500'}
                       />
                     </HStack>
 
                     <HStack>
-                      {isPc && (
+                      {isPc && dataset.type !== DatasetTypeEnum.folder && (
                         <HStack spacing={1} className="time">
-                          <Avatar src={dataset.vectorModel.avatar} w={'0.85rem'} />
+                          <Avatar src={vectorModelAvatar} w={'0.85rem'} />
                           <Box color={'myGray.500'} fontSize={'mini'}>
                             {dataset.vectorModel.name}
                           </Box>
                         </HStack>
                       )}
-                      {dataset.permission.hasWritePer && (
+                      {(dataset.type === DatasetTypeEnum.folder
+                        ? dataset.permission.hasManagePer
+                        : dataset.permission.hasWritePer) && (
                         <Box
                           className="more"
                           display={['', 'none']}
@@ -327,7 +318,7 @@ function List() {
                                 children: [
                                   {
                                     icon: 'edit',
-                                    label: commonT('dataset.Edit Info'),
+                                    label: t('common:dataset.Edit Info'),
                                     onClick: () =>
                                       setEditedDataset({
                                         id: dataset._id,
@@ -336,15 +327,22 @@ function List() {
                                         avatar: dataset.avatar
                                       })
                                   },
-                                  {
-                                    icon: 'common/file/move',
-                                    label: t('common:Move'),
-                                    onClick: () => setMoveDatasetId(dataset._id)
-                                  },
+                                  ...((parentDataset ? parentDataset : dataset)?.permission
+                                    .hasManagePer
+                                    ? [
+                                        {
+                                          icon: 'common/file/move',
+                                          label: t('common:Move'),
+                                          onClick: () => {
+                                            setMoveDatasetId(dataset._id);
+                                          }
+                                        }
+                                      ]
+                                    : []),
                                   ...(dataset.permission.hasManagePer
                                     ? [
                                         {
-                                          icon: 'support/team/key',
+                                          icon: 'key',
                                           label: t('common:permission.Permission'),
                                           onClick: () => setEditPerDatasetIndex(index)
                                         }
@@ -404,7 +402,7 @@ function List() {
       {editedDataset && (
         <EditResourceModal
           {...editedDataset}
-          title={commonT('dataset.Edit Info')}
+          title={t('common:dataset.Edit Info')}
           onClose={() => setEditedDataset(undefined)}
           onEdit={async (data) => {
             await onUpdateDataset({
@@ -419,6 +417,12 @@ function List() {
 
       {!!editPerDataset && (
         <ConfigPerModal
+          onChangeOwner={(tmbId: string) =>
+            postChangeOwner({
+              datasetId: editPerDataset._id,
+              ownerId: tmbId
+            }).then(() => loadMyDatasets())
+          }
           hasParent={!!parentId}
           refetchResource={loadMyDatasets}
           isInheritPermission={editPerDataset.inheritPermission}
@@ -427,36 +431,19 @@ function List() {
           }
           avatar={editPerDataset.avatar}
           name={editPerDataset.name}
-          defaultPer={{
-            value: editPerDataset.defaultPermission,
-            defaultValue: DatasetDefaultPermissionVal,
-            onChange: (e) =>
-              onUpdateDataset({
-                id: editPerDataset._id,
-                defaultPermission: e
-              })
-          }}
           managePer={{
             permission: editPerDataset.permission,
             onGetCollaboratorList: () => getCollaboratorList(editPerDataset._id),
             permissionList: DatasetPermissionList,
-            onUpdateCollaborators: ({
-              tmbIds,
-              permission
-            }: {
-              tmbIds: string[];
-              permission: number;
-            }) => {
-              return postUpdateDatasetCollaborators({
-                tmbIds,
-                permission,
+            onUpdateCollaborators: (props) =>
+              postUpdateDatasetCollaborators({
+                ...props,
                 datasetId: editPerDataset._id
-              });
-            },
-            onDelOneCollaborator: (tmbId: string) =>
+              }),
+            onDelOneCollaborator: async (props) =>
               deleteDatasetCollaborators({
-                datasetId: editPerDataset._id,
-                tmbId
+                ...props,
+                datasetId: editPerDataset._id
               }),
             refreshDeps: [editPerDataset._id, editPerDataset.inheritPermission]
           }}
@@ -464,6 +451,7 @@ function List() {
         />
       )}
       <ConfirmModal />
+      <MoveConfirmModal />
     </>
   );
 }

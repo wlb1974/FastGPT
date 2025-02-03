@@ -4,7 +4,9 @@ import type { OutLinkChatAuthProps } from '@fastgpt/global/support/permission/ch
 import { AppTypeEnum } from '@fastgpt/global/core/app/constants';
 import { RequestPaging } from '@/types';
 import { GetChatTypeEnum } from '@/global/core/chat/constants';
-export type GetChatSpeechProps = {
+import { ChatSourceEnum } from '@fastgpt/global/core/chat/constants';
+export type GetChatSpeechProps = OutLinkChatAuthProps & {
+  appId: string;
   ttsConfig: AppTTSConfigType;
   input: string;
   shareId?: string;
@@ -40,7 +42,7 @@ export type InitChatResponse = {
   appId: string;
   userAvatar?: string;
   title?: string;
-  variables: Record<string, any>;
+  variables?: Record<string, any>;
   app: {
     chatConfig?: AppChatConfigType;
     chatModels?: string[];
@@ -56,6 +58,7 @@ export type InitChatResponse = {
 /* ---------- history ----------- */
 export type GetHistoriesProps = OutLinkChatAuthProps & {
   appId?: string;
+  source?: `${ChatSourceEnum}`;
 };
 
 export type UpdateHistoryProps = OutLinkChatAuthProps & {
@@ -71,7 +74,7 @@ export type DelHistoryProps = OutLinkChatAuthProps & {
   chatId: string;
 };
 export type ClearHistoriesProps = OutLinkChatAuthProps & {
-  appId?: string;
+  appId: string;
 };
 
 /* -------- chat item ---------- */
@@ -84,12 +87,12 @@ export type DeleteChatItemProps = OutLinkChatAuthProps & {
 export type AdminUpdateFeedbackParams = AdminFbkType & {
   appId: string;
   chatId: string;
-  chatItemId: string;
+  dataId: string;
 };
 
 export type CloseCustomFeedbackParams = {
   appId: string;
   chatId: string;
-  chatItemId: string;
+  dataId: string;
   index: number;
 };

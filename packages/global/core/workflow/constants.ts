@@ -37,6 +37,60 @@ export enum WorkflowIOValueTypeEnum {
   selectDataset = 'selectDataset'
 }
 
+export const toolValueTypeList = [
+  {
+    label: WorkflowIOValueTypeEnum.string,
+    value: WorkflowIOValueTypeEnum.string,
+    jsonSchema: {
+      type: 'string'
+    }
+  },
+  {
+    label: WorkflowIOValueTypeEnum.number,
+    value: WorkflowIOValueTypeEnum.number,
+    jsonSchema: {
+      type: 'number'
+    }
+  },
+  {
+    label: WorkflowIOValueTypeEnum.boolean,
+    value: WorkflowIOValueTypeEnum.boolean,
+    jsonSchema: {
+      type: 'boolean'
+    }
+  },
+  {
+    label: 'array<string>',
+    value: WorkflowIOValueTypeEnum.arrayString,
+    jsonSchema: {
+      type: 'array',
+      items: {
+        type: 'string'
+      }
+    }
+  },
+  {
+    label: 'array<number>',
+    value: WorkflowIOValueTypeEnum.arrayNumber,
+    jsonSchema: {
+      type: 'array',
+      items: {
+        type: 'number'
+      }
+    }
+  },
+  {
+    label: 'array<boolean>',
+    value: WorkflowIOValueTypeEnum.arrayBoolean,
+    jsonSchema: {
+      type: 'array',
+      items: {
+        type: 'boolean'
+      }
+    }
+  }
+];
+
 /* reg: modulename key */
 export enum NodeInputKeyEnum {
   // old
@@ -52,6 +106,7 @@ export enum NodeInputKeyEnum {
   variables = 'variables',
   scheduleTrigger = 'scheduleTrigger',
   chatInputGuide = 'chatInputGuide',
+  autoExecute = 'autoExecute',
 
   // plugin config
   instruction = 'instruction',
@@ -97,6 +152,7 @@ export enum NodeInputKeyEnum {
   datasetSearchExtensionModel = 'datasetSearchExtensionModel',
   datasetSearchExtensionBg = 'datasetSearchExtensionBg',
   collectionFilterMatch = 'collectionFilterMatch',
+  authTmbId = 'authTmbId',
 
   // concat dataset
   datasetQuoteList = 'system_datasetQuoteList',
@@ -145,13 +201,19 @@ export enum NodeInputKeyEnum {
   childrenNodeIdList = 'childrenNodeIdList',
   nodeWidth = 'nodeWidth',
   nodeHeight = 'nodeHeight',
+  loopNodeInputHeight = 'loopNodeInputHeight',
   // loop start
   loopStartInput = 'loopStartInput',
+  loopStartIndex = 'loopStartIndex',
   // loop end
   loopEndInput = 'loopEndInput',
 
   // form input
-  userInputForms = 'userInputForms'
+  userInputForms = 'userInputForms',
+
+  // comment
+  commentText = 'commentText',
+  commentSize = 'commentSize'
 }
 
 export enum NodeOutputKeyEnum {
@@ -198,9 +260,9 @@ export enum NodeOutputKeyEnum {
 
   // loop
   loopArray = 'loopArray',
-
   // loop start
   loopStartInput = 'loopStartInput',
+  loopStartIndex = 'loopStartIndex',
 
   // form input
   formInputResult = 'formInputResult'
@@ -209,29 +271,51 @@ export enum NodeOutputKeyEnum {
 export enum VariableInputEnum {
   input = 'input',
   textarea = 'textarea',
+  numberInput = 'numberInput',
   select = 'select',
   custom = 'custom'
 }
-export const variableMap = {
+export const variableMap: Record<
+  VariableInputEnum,
+  {
+    icon: string;
+    label: string;
+    value: VariableInputEnum;
+    defaultValueType: WorkflowIOValueTypeEnum;
+    description?: string;
+  }
+> = {
   [VariableInputEnum.input]: {
-    icon: 'core/app/variable/input',
-    title: i18nT('common:core.module.variable.input type'),
-    desc: ''
+    icon: 'core/workflow/inputType/input',
+    label: i18nT('common:core.workflow.inputType.textInput'),
+    value: VariableInputEnum.input,
+    defaultValueType: WorkflowIOValueTypeEnum.string
   },
   [VariableInputEnum.textarea]: {
-    icon: 'core/app/variable/textarea',
-    title: i18nT('common:core.module.variable.textarea type'),
-    desc: i18nT('app:variable.textarea_type_desc')
+    icon: 'core/workflow/inputType/textarea',
+    label: i18nT('common:core.workflow.inputType.textarea'),
+    value: VariableInputEnum.textarea,
+    defaultValueType: WorkflowIOValueTypeEnum.string,
+    description: i18nT('app:variable.textarea_type_desc')
+  },
+  [VariableInputEnum.numberInput]: {
+    icon: 'core/workflow/inputType/numberInput',
+    label: i18nT('common:core.workflow.inputType.number input'),
+    value: VariableInputEnum.numberInput,
+    defaultValueType: WorkflowIOValueTypeEnum.number
   },
   [VariableInputEnum.select]: {
-    icon: 'core/app/variable/select',
-    title: i18nT('common:core.module.variable.select type'),
-    desc: ''
+    icon: 'core/workflow/inputType/option',
+    label: i18nT('common:core.workflow.inputType.select'),
+    value: VariableInputEnum.select,
+    defaultValueType: WorkflowIOValueTypeEnum.string
   },
   [VariableInputEnum.custom]: {
-    icon: 'core/app/variable/external',
-    title: i18nT('common:core.module.variable.Custom type'),
-    desc: i18nT('app:variable.select type_desc')
+    icon: 'core/workflow/inputType/customVariable',
+    label: i18nT('common:core.workflow.inputType.custom'),
+    value: VariableInputEnum.custom,
+    defaultValueType: WorkflowIOValueTypeEnum.string,
+    description: i18nT('app:variable.select type_desc')
   }
 };
 
@@ -254,3 +338,21 @@ export enum ContentTypes {
   xml = 'xml',
   raw = 'raw-text'
 }
+
+export const ArrayTypeMap: Record<WorkflowIOValueTypeEnum, WorkflowIOValueTypeEnum> = {
+  [WorkflowIOValueTypeEnum.string]: WorkflowIOValueTypeEnum.arrayString,
+  [WorkflowIOValueTypeEnum.number]: WorkflowIOValueTypeEnum.arrayNumber,
+  [WorkflowIOValueTypeEnum.boolean]: WorkflowIOValueTypeEnum.arrayBoolean,
+  [WorkflowIOValueTypeEnum.object]: WorkflowIOValueTypeEnum.arrayObject,
+  [WorkflowIOValueTypeEnum.arrayString]: WorkflowIOValueTypeEnum.arrayString,
+  [WorkflowIOValueTypeEnum.arrayNumber]: WorkflowIOValueTypeEnum.arrayNumber,
+  [WorkflowIOValueTypeEnum.arrayBoolean]: WorkflowIOValueTypeEnum.arrayBoolean,
+  [WorkflowIOValueTypeEnum.arrayObject]: WorkflowIOValueTypeEnum.arrayObject,
+  [WorkflowIOValueTypeEnum.chatHistory]: WorkflowIOValueTypeEnum.arrayObject,
+  [WorkflowIOValueTypeEnum.datasetQuote]: WorkflowIOValueTypeEnum.arrayObject,
+  [WorkflowIOValueTypeEnum.dynamic]: WorkflowIOValueTypeEnum.arrayObject,
+  [WorkflowIOValueTypeEnum.selectDataset]: WorkflowIOValueTypeEnum.arrayObject,
+  [WorkflowIOValueTypeEnum.selectApp]: WorkflowIOValueTypeEnum.arrayObject,
+  [WorkflowIOValueTypeEnum.arrayAny]: WorkflowIOValueTypeEnum.arrayAny,
+  [WorkflowIOValueTypeEnum.any]: WorkflowIOValueTypeEnum.arrayAny
+};

@@ -13,17 +13,21 @@ import { responseWrite } from '../../../common/response';
 import { NextApiResponse } from 'next';
 import { SseResponseEventEnum } from '@fastgpt/global/core/workflow/runtime/constants';
 import { getNanoid } from '@fastgpt/global/common/string/tools';
+import { SearchDataResponseItemType } from '@fastgpt/global/core/dataset/type';
+import json5 from 'json5';
 
 export const getWorkflowResponseWrite = ({
   res,
   detail,
   streamResponse,
-  id = getNanoid(24)
+  id = getNanoid(24),
+  showNodeStatus = true
 }: {
   res?: NextApiResponse;
   detail: boolean;
   streamResponse: boolean;
   id?: string;
+  showNodeStatus?: boolean;
 }) => {
   return ({
     write,
@@ -40,17 +44,27 @@ export const getWorkflowResponseWrite = ({
 
     if (!res || res.closed || !useStreamResponse) return;
 
-    const detailEvent = [
-      SseResponseEventEnum.error,
-      SseResponseEventEnum.flowNodeStatus,
-      SseResponseEventEnum.flowResponses,
-      SseResponseEventEnum.interactive,
-      SseResponseEventEnum.toolCall,
-      SseResponseEventEnum.toolParams,
-      SseResponseEventEnum.toolResponse,
-      SseResponseEventEnum.updateVariables
-    ];
-    if (!detail && detailEvent.includes(event)) return;
+    // Forbid show detail
+    const detailEvent: Record<string, 1> = {
+      [SseResponseEventEnum.error]: 1,
+      [SseResponseEventEnum.flowNodeStatus]: 1,
+      [SseResponseEventEnum.flowResponses]: 1,
+      [SseResponseEventEnum.interactive]: 1,
+      [SseResponseEventEnum.toolCall]: 1,
+      [SseResponseEventEnum.toolParams]: 1,
+      [SseResponseEventEnum.toolResponse]: 1,
+      [SseResponseEventEnum.updateVariables]: 1
+    };
+    if (!detail && detailEvent[event]) return;
+
+    // Forbid show running status
+    const statusEvent: Record<string, 1> = {
+      [SseResponseEventEnum.flowNodeStatus]: 1,
+      [SseResponseEventEnum.toolCall]: 1,
+      [SseResponseEventEnum.toolParams]: 1,
+      [SseResponseEventEnum.toolResponse]: 1
+    };
+    if (!showNodeStatus && statusEvent[event]) return;
 
     responseWrite({
       res,
@@ -74,27 +88,6 @@ export const filterToolNodeIdByEdges = ({
     )
     .map((edge) => edge.target);
 };
-
-// export const checkTheModuleConnectedByTool = (
-//   modules: StoreNodeItemType[],
-//   node: StoreNodeItemType
-// ) => {
-//   let sign = false;
-//   const toolModules = modules.filter((item) => item.flowNodeType === FlowNodeTypeEnum.tools);
-
-//   toolModules.forEach((item) => {
-//     const toolOutput = item.outputs.find(
-//       (output) => output.key === NodeOutputKeyEnum.selectedTools
-//     );
-//     toolOutput?.targets.forEach((target) => {
-//       if (target.moduleId === node.moduleId) {
-//         sign = true;
-//       }
-//     });
-//   });
-
-//   return sign;
-// };
 
 export const getHistories = (history?: ChatItemType[] | number, histories: ChatItemType[] = []) => {
   if (!history) return [];
@@ -124,11 +117,18 @@ export const valueTypeFormat = (value: any, type?: WorkflowIOValueTypeEnum) => {
     return Boolean(value);
   }
   try {
-    if (type === WorkflowIOValueTypeEnum.datasetQuote && !Array.isArray(value)) {
-      return JSON.parse(value);
-    }
-    if (type === WorkflowIOValueTypeEnum.selectDataset && !Array.isArray(value)) {
-      return JSON.parse(value);
+    if (
+      type &&
+      [
+        WorkflowIOValueTypeEnum.object,
+        WorkflowIOValueTypeEnum.chatHistory,
+        WorkflowIOValueTypeEnum.datasetQuote,
+        WorkflowIOValueTypeEnum.selectApp,
+        WorkflowIOValueTypeEnum.selectDataset
+      ].includes(type) &&
+      typeof value !== 'object'
+    ) {
+      return json5.parse(value);
     }
   } catch (error) {
     return value;
@@ -137,14 +137,34 @@ export const valueTypeFormat = (value: any, type?: WorkflowIOValueTypeEnum) => {
   return value;
 };
 
+export const checkQuoteQAValue = (quoteQA?: SearchDataResponseItemType[]) => {
+  if (!quoteQA) return undefined;
+  if (quoteQA.length === 0) {
+    return [];
+  }
+  if (quoteQA.some((item) => !item.q)) {
+    return undefined;
+  }
+  return quoteQA;
+};
+
 /* remove system variable */
-export const removeSystemVariable = (variables: Record<string, any>) => {
+export const removeSystemVariable = (
+  variables: Record<string, any>,
+  removeObj: Record<string, string> = {}
+) => {
   const copyVariables = { ...variables };
+  delete copyVariables.userId;
   delete copyVariables.appId;
   delete copyVariables.chatId;
   delete copyVariables.responseChatItemId;
   delete copyVariables.histories;
   delete copyVariables.cTime;
+
+  // delete external provider workflow variables
+  Object.keys(removeObj).forEach((key) => {
+    delete copyVariables[key];
+  });
 
   return copyVariables;
 };

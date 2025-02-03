@@ -178,6 +178,7 @@ const TagManageModal = ({ onClose }: { onClose: () => void }) => {
       isOpen
       onClose={onClose}
       iconSrc="core/dataset/tag"
+      iconColor={'primary.600'}
       title={t('dataset:tag.manage')}
       w={'580px'}
       h={'600px'}
@@ -221,9 +222,10 @@ const TagManageModal = ({ onClose }: { onClose: () => void }) => {
                   onChange={(e) => setNewTag(e.target.value)}
                   ref={tagInputRef}
                   w={'200px'}
-                  onBlur={() => {
+                  onBlur={async () => {
                     if (newTag && !collectionTags.map((item) => item.tag).includes(newTag)) {
-                      onCreateCollectionTag(newTag);
+                      await onCreateCollectionTag(newTag);
+                      fetchData(1);
                     }
                     setNewTag(undefined);
                   }}

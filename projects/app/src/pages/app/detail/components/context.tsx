@@ -1,4 +1,4 @@
-import { Dispatch, ReactNode, SetStateAction, useCallback, useEffect, useState } from 'react';
+import { Dispatch, ReactNode, SetStateAction, useCallback, useMemo, useState } from 'react';
 import { createContext } from 'use-context-selector';
 import { defaultApp } from '@/web/core/app/constants';
 import { delAppById, getAppDetailById, putAppById } from '@/web/core/app/api';
@@ -13,6 +13,7 @@ import { useDisclosure } from '@chakra-ui/react';
 import { useConfirm } from '@fastgpt/web/hooks/useConfirm';
 import type { StoreNodeItemType } from '@fastgpt/global/core/workflow/type/node';
 import type { StoreEdgeItemType } from '@fastgpt/global/core/workflow/type/edge';
+import { AppErrEnum } from '@fastgpt/global/common/error/code/app';
 
 const InfoModal = dynamic(() => import('./InfoModal'));
 const TagsEditModal = dynamic(() => import('./TagsEditModal'));
@@ -150,17 +151,24 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const { runAsync: onSaveApp } = useRequest2(async (data: PostPublishAppProps) => {
-    await postPublishApp(appId, data);
-    setAppDetail((state) => ({
-      ...state,
-      ...data,
-      modules: data.nodes || state.modules
-    }));
-    reloadAppLatestVersion();
+    try {
+      await postPublishApp(appId, data);
+      setAppDetail((state) => ({
+        ...state,
+        ...data,
+        modules: data.nodes || state.modules
+      }));
+      reloadAppLatestVersion();
+    } catch (error: any) {
+      if (error.statusText == AppErrEnum.unExist) {
+        return;
+      }
+      return Promise.reject(error);
+    }
   });
 
   const { openConfirm: openConfirmDel, ConfirmModal: ConfirmDelModal } = useConfirm({
-    content: t('app:confirm_del_app_tip'),
+    content: t('app:confirm_del_app_tip', { name: appDetail.name }),
     type: 'delete'
   });
   const { runAsync: deleteApp } = useRequest2(
@@ -176,24 +184,49 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
       errorToast: t('common:common.Delete Failed')
     }
   );
-  const onDelApp = useCallback(() => openConfirmDel(deleteApp)(), [deleteApp, openConfirmDel]);
+  const onDelApp = useCallback(
+    () =>
+      openConfirmDel(
+        deleteApp,
+        undefined,
+        t('app:confirm_del_app_tip', { name: appDetail.name })
+      )(),
+    [appDetail.name, deleteApp, openConfirmDel, t]
+  );
 
-  const contextValue: AppContextType = {
-    appId,
-    currentTab,
-    route2Tab,
-    appDetail,
-    setAppDetail,
-    loadingApp,
-    updateAppDetail,
-    onOpenInfoEdit,
-    onOpenTeamTagModal,
-    onDelApp,
-    onSaveApp,
-    appLatestVersion,
-    reloadAppLatestVersion,
-    reloadApp
-  };
+  const contextValue: AppContextType = useMemo(
+    () => ({
+      appId,
+      currentTab,
+      route2Tab,
+      appDetail,
+      setAppDetail,
+      loadingApp,
+      updateAppDetail,
+      onOpenInfoEdit,
+      onOpenTeamTagModal,
+      onDelApp,
+      onSaveApp,
+      appLatestVersion,
+      reloadAppLatestVersion,
+      reloadApp
+    }),
+    [
+      appDetail,
+      appId,
+      appLatestVersion,
+      currentTab,
+      loadingApp,
+      onDelApp,
+      onOpenInfoEdit,
+      onOpenTeamTagModal,
+      onSaveApp,
+      reloadApp,
+      reloadAppLatestVersion,
+      route2Tab,
+      updateAppDetail
+    ]
+  );
 
   return (
     <AppContext.Provider value={contextValue}>

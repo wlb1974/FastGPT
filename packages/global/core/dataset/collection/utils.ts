@@ -1,15 +1,14 @@
 import { DatasetCollectionTypeEnum, TrainingModeEnum, TrainingTypeMap } from '../constants';
-import { CollectionWithDatasetType, DatasetCollectionSchemaType } from '../type';
+import { DatasetCollectionSchemaType } from '../type';
 
-export const getCollectionSourceData = (
-  collection?: CollectionWithDatasetType | DatasetCollectionSchemaType
-) => {
+export const getCollectionSourceData = (collection?: DatasetCollectionSchemaType) => {
   return {
     sourceId:
       collection?.fileId ||
       collection?.rawLink ||
       collection?.externalFileId ||
-      collection?.externalFileUrl,
+      collection?.externalFileUrl ||
+      collection?.apiFileId,
     sourceName: collection?.name || ''
   };
 };

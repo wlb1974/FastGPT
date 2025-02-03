@@ -3,7 +3,7 @@ import { WorkflowIOValueTypeEnum } from '@fastgpt/global/core/workflow/constants
 import { FlowNodeInputTypeEnum } from '@fastgpt/global/core/workflow/node/constant';
 import MyModal from '@fastgpt/web/components/common/MyModal';
 import React, { useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from 'next-i18next';
 import MyIcon from '@fastgpt/web/components/common/Icon';
 import { UserInputFormItemType } from '@fastgpt/global/core/workflow/template/system/interactive/type';
 import { useForm } from 'react-hook-form';
@@ -19,7 +19,8 @@ export const defaultFormInput: UserInputFormItemType = {
   maxLength: undefined,
   defaultValue: '',
   valueType: WorkflowIOValueTypeEnum.string,
-  required: false
+  required: false,
+  list: [{ label: '', value: '' }]
 };
 
 // Modal for add or edit user input form items
@@ -39,30 +40,17 @@ const InputFormEditModal = ({
   const { toast } = useToast();
 
   const form = useForm({
-    defaultValues: {
-      ...defaultValue,
-      list: defaultValue.list?.length ? defaultValue.list : [{ label: '', value: '' }]
-    }
+    defaultValues: defaultValue
   });
   const { setValue, watch, reset } = form;
 
   const inputType = watch('type') || FlowNodeInputTypeEnum.input;
 
-  const maxLength = watch('maxLength');
-  const max = watch('max');
-  const min = watch('min');
-
   const inputTypeList = [
     {
       icon: 'core/workflow/inputType/input',
-      label: t('common:core.workflow.inputType.input'),
+      label: t('common:core.workflow.inputType.textInput'),
       value: FlowNodeInputTypeEnum.input,
-      defaultValueType: WorkflowIOValueTypeEnum.string
-    },
-    {
-      icon: 'core/workflow/inputType/textarea',
-      label: t('common:core.workflow.inputType.textarea'),
-      value: FlowNodeInputTypeEnum.textarea,
       defaultValueType: WorkflowIOValueTypeEnum.string
     },
     {
@@ -111,7 +99,7 @@ const InputFormEditModal = ({
         reset(defaultFormInput);
       }
     },
-    [toast, t, reset, onSubmit, onClose, defaultFormInput, defaultValueType]
+    [defaultValue.key, keys, defaultValueType, isEdit, toast, t, onSubmit, onClose, reset]
   );
 
   const onSubmitError = useCallback(
@@ -194,13 +182,9 @@ const InputFormEditModal = ({
           type={'formInput'}
           isEdit={isEdit}
           inputType={inputType}
-          maxLength={maxLength}
-          max={max}
-          min={min}
           onClose={onClose}
           onSubmitSuccess={onSubmitSuccess}
           onSubmitError={onSubmitError}
-          valueType={defaultValueType}
         />
       </Flex>
     </MyModal>

@@ -15,7 +15,7 @@ import { WorkflowContext } from '../../context';
 const NodeSimple = ({
   data,
   selected,
-  minW = '350px',
+  minW = '524px',
   maxW
 }: NodeProps<FlowNodeItemType> & { minW?: string | number; maxW?: string | number }) => {
   const { t } = useTranslation();
@@ -38,10 +38,7 @@ const NodeSimple = ({
         {filterHiddenInputs.length > 0 && (
           <>
             <Container>
-              <IOTitle
-                text={t('common:common.Input')}
-                inputExplanationUrl={data.inputExplanationUrl}
-              />
+              <IOTitle text={t('common:common.Input')} />
               <RenderInput nodeId={nodeId} flowInputList={commonInputs} />
             </Container>
           </>

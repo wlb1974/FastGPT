@@ -5,21 +5,20 @@ import {
   TeamCollectionName,
   TeamMemberCollectionName
 } from '@fastgpt/global/support/user/team/constant';
-import { AppDefaultPermissionVal } from '@fastgpt/global/support/permission/app/constant';
-import { getPermissionSchema } from '@fastgpt/global/support/permission/utils';
 
 export const AppCollectionName = 'apps';
 
 export const chatConfigType = {
   welcomeText: String,
   variables: Array,
-  questionGuide: Boolean,
+  questionGuide: Object,
   ttsConfig: Object,
   whisperConfig: Object,
   scheduledTriggerConfig: Object,
   chatInputGuide: Object,
   fileSelectConfig: Object,
-  instruction: String
+  instruction: String,
+  autoExecute: Object
 };
 
 // schema
@@ -111,12 +110,24 @@ const AppSchema = new Schema({
   inited: {
     type: Boolean
   },
+  inheritPermission: {
+    type: Boolean,
+    default: true
+  },
 
-  ...getPermissionSchema(AppDefaultPermissionVal)
+  // abandoned
+  defaultPermission: Number
 });
 
 AppSchema.index({ teamId: 1, updateTime: -1 });
 AppSchema.index({ teamId: 1, type: 1 });
-AppSchema.index({ scheduledTriggerConfig: 1, intervalNextTime: -1 });
+AppSchema.index(
+  { scheduledTriggerConfig: 1, scheduledTriggerNextTime: -1 },
+  {
+    partialFilterExpression: {
+      scheduledTriggerConfig: { $exists: true }
+    }
+  }
+);
 
 export const MongoApp = getMongoModel<AppType>(AppCollectionName, AppSchema);

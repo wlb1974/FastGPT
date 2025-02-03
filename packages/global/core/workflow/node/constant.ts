@@ -3,12 +3,12 @@ import { i18nT } from '../../../../web/i18n/utils';
 export enum FlowNodeInputTypeEnum { // render ui
   reference = 'reference', // reference to other node output
   input = 'input', // one line input
+  textarea = 'textarea',
   numberInput = 'numberInput',
   switch = 'switch', // true/false
   select = 'select',
 
   // editor
-  textarea = 'textarea',
   JSONEditor = 'JSONEditor',
 
   addInputParam = 'addInputParam', // params input
@@ -27,7 +27,9 @@ export enum FlowNodeInputTypeEnum { // render ui
   settingDatasetQuotePrompt = 'settingDatasetQuotePrompt',
 
   hidden = 'hidden',
-  custom = 'custom'
+  custom = 'custom',
+
+  fileSelect = 'fileSelect'
 }
 export const FlowNodeInputMap: Record<
   FlowNodeInputTypeEnum,
@@ -38,9 +40,6 @@ export const FlowNodeInputMap: Record<
   [FlowNodeInputTypeEnum.reference]: {
     icon: 'core/workflow/inputType/reference'
   },
-  [FlowNodeInputTypeEnum.input]: {
-    icon: 'core/workflow/inputType/input'
-  },
   [FlowNodeInputTypeEnum.numberInput]: {
     icon: 'core/workflow/inputType/numberInput'
   },
@@ -49,9 +48,6 @@ export const FlowNodeInputMap: Record<
   },
   [FlowNodeInputTypeEnum.switch]: {
     icon: 'core/workflow/inputType/switch'
-  },
-  [FlowNodeInputTypeEnum.textarea]: {
-    icon: 'core/workflow/inputType/textarea'
   },
   [FlowNodeInputTypeEnum.JSONEditor]: {
     icon: 'core/workflow/inputType/jsonEditor'
@@ -85,6 +81,15 @@ export const FlowNodeInputMap: Record<
   },
   [FlowNodeInputTypeEnum.custom]: {
     icon: 'core/workflow/inputType/custom'
+  },
+  [FlowNodeInputTypeEnum.input]: {
+    icon: 'core/workflow/inputType/input'
+  },
+  [FlowNodeInputTypeEnum.textarea]: {
+    icon: 'core/workflow/inputType/textarea'
+  },
+  [FlowNodeInputTypeEnum.fileSelect]: {
+    icon: 'core/workflow/inputType/file'
   }
 };
 
@@ -118,6 +123,7 @@ export enum FlowNodeTypeEnum {
   queryExtension = 'cfr',
   tools = 'tools',
   stopTool = 'stopTool',
+  toolParams = 'toolParams',
   lafModule = 'lafModule',
   ifElseNode = 'ifElseNode',
   variableUpdate = 'variableUpdate',
@@ -129,49 +135,50 @@ export enum FlowNodeTypeEnum {
   loop = 'loop',
   loopStart = 'loopStart',
   loopEnd = 'loopEnd',
-  formInput = 'formInput'
+  formInput = 'formInput',
+  comment = 'comment'
 }
 
 // node IO value type
 export const FlowValueTypeMap = {
   [WorkflowIOValueTypeEnum.string]: {
-    label: 'string',
+    label: 'String',
     value: WorkflowIOValueTypeEnum.string
   },
   [WorkflowIOValueTypeEnum.number]: {
-    label: 'number',
+    label: 'Number',
     value: WorkflowIOValueTypeEnum.number
   },
   [WorkflowIOValueTypeEnum.boolean]: {
-    label: 'boolean',
+    label: 'Boolean',
     value: WorkflowIOValueTypeEnum.boolean
   },
   [WorkflowIOValueTypeEnum.object]: {
-    label: 'object',
+    label: 'Object',
     value: WorkflowIOValueTypeEnum.object
   },
   [WorkflowIOValueTypeEnum.arrayString]: {
-    label: 'array<string>',
+    label: 'Array<string>',
     value: WorkflowIOValueTypeEnum.arrayString
   },
   [WorkflowIOValueTypeEnum.arrayNumber]: {
-    label: 'array<number>',
+    label: 'Array<number>',
     value: WorkflowIOValueTypeEnum.arrayNumber
   },
   [WorkflowIOValueTypeEnum.arrayBoolean]: {
-    label: 'array<boolean>',
+    label: 'Array<boolean>',
     value: WorkflowIOValueTypeEnum.arrayBoolean
   },
   [WorkflowIOValueTypeEnum.arrayObject]: {
-    label: 'array<object>',
+    label: 'Array<object>',
     value: WorkflowIOValueTypeEnum.arrayObject
   },
   [WorkflowIOValueTypeEnum.arrayAny]: {
-    label: 'array',
+    label: 'Array',
     value: WorkflowIOValueTypeEnum.arrayAny
   },
   [WorkflowIOValueTypeEnum.any]: {
-    label: 'any',
+    label: 'Any',
     value: WorkflowIOValueTypeEnum.any
   },
   [WorkflowIOValueTypeEnum.chatHistory]: {

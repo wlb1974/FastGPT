@@ -1,7 +1,6 @@
 import type { ApiRequestProps, ApiResponseType } from '@fastgpt/service/type/next';
 import { NextAPI } from '@/service/middleware/entry';
 import { GetChatRecordsProps } from '@/global/core/chat/api';
-import { ReadPermissionVal } from '@fastgpt/global/support/permission/constant';
 import { DispatchNodeResponseKeyEnum } from '@fastgpt/global/core/workflow/runtime/constants';
 import { transformPreviewHistories } from '@/global/core/chat/utils';
 import { AppTypeEnum } from '@fastgpt/global/core/app/constants';
@@ -9,12 +8,12 @@ import { getChatItems } from '@fastgpt/service/core/chat/controller';
 import { authChatCrud } from '@/service/support/permission/auth/chat';
 import { MongoApp } from '@fastgpt/service/core/app/schema';
 import { AppErrEnum } from '@fastgpt/global/common/error/code/app';
-import { ChatRoleEnum } from '@fastgpt/global/core/chat/constants';
+import { ChatItemValueTypeEnum, ChatRoleEnum } from '@fastgpt/global/core/chat/constants';
 import { filterPublicNodeResponseData } from '@fastgpt/global/core/chat/utils';
-import { authOutLink } from '@/service/support/permission/auth/outLink';
 import { GetChatTypeEnum } from '@/global/core/chat/constants';
 import { PaginationProps, PaginationResponse } from '@fastgpt/web/common/fetch/type';
 import { ChatItemType } from '@fastgpt/global/core/chat/type';
+import { parsePaginationRequest } from '@fastgpt/service/common/api/pagination';
 
 export type getPaginationRecordsQuery = {};
 
@@ -24,9 +23,11 @@ export type getPaginationRecordsResponse = PaginationResponse<ChatItemType>;
 
 async function handler(
   req: ApiRequestProps<getPaginationRecordsBody, getPaginationRecordsQuery>,
-  res: ApiResponseType<any>
+  _res: ApiResponseType<any>
 ): Promise<getPaginationRecordsResponse> {
-  const { chatId, appId, offset, pageSize = 10, loadCustomFeedbacks, type } = req.body;
+  const { appId, chatId, loadCustomFeedbacks, type = GetChatTypeEnum.normal } = req.body;
+
+  const { offset, pageSize } = parsePaginationRequest(req);
 
   if (!appId || !chatId) {
     return {
@@ -35,36 +36,28 @@ async function handler(
     };
   }
 
-  const [app] = await Promise.all([
+  const [app, { responseDetail, showNodeStatus, authType }] = await Promise.all([
     MongoApp.findById(appId, 'type').lean(),
     authChatCrud({
       req,
       authToken: true,
-      ...req.body,
-      per: ReadPermissionVal
+      authApiKey: true,
+      ...req.body
     })
   ]);
+
   if (!app) {
     return Promise.reject(AppErrEnum.unExist);
   }
   const isPlugin = app.type === AppTypeEnum.plugin;
-
-  const shareChat = await (async () => {
-    if (type === GetChatTypeEnum.outLink)
-      return await authOutLink({
-        shareId: req.body.shareId,
-        outLinkUid: req.body.outLinkUid
-      }).then((result) => result.shareChat);
-  })();
+  const isOutLink = authType === GetChatTypeEnum.outLink;
 
   const fieldMap = {
-    [GetChatTypeEnum.normal]: `dataId obj value adminFeedback userBadFeedback userGoodFeedback ${
+    [GetChatTypeEnum.normal]: `dataId obj value adminFeedback userBadFeedback userGoodFeedback time hideInUI ${
       DispatchNodeResponseKeyEnum.nodeResponse
     } ${loadCustomFeedbacks ? 'customFeedbacks' : ''}`,
-    [GetChatTypeEnum.outLink]: `dataId obj value userGoodFeedback userBadFeedback adminFeedback ${
-      shareChat?.responseDetail || isPlugin ? `${DispatchNodeResponseKeyEnum.nodeResponse}` : ''
-    } `,
-    [GetChatTypeEnum.team]: `dataId obj value userGoodFeedback userBadFeedback adminFeedback ${DispatchNodeResponseKeyEnum.nodeResponse}`
+    [GetChatTypeEnum.outLink]: `dataId obj value userGoodFeedback userBadFeedback adminFeedback time hideInUI ${DispatchNodeResponseKeyEnum.nodeResponse}`,
+    [GetChatTypeEnum.team]: `dataId obj value userGoodFeedback userBadFeedback adminFeedback time hideInUI ${DispatchNodeResponseKeyEnum.nodeResponse}`
   };
 
   const { total, histories } = await getChatItems({
@@ -76,16 +69,23 @@ async function handler(
   });
 
   // Remove important information
-  if (type === 'outLink' && app.type !== AppTypeEnum.plugin) {
+  if (isOutLink && app.type !== AppTypeEnum.plugin) {
     histories.forEach((item) => {
       if (item.obj === ChatRoleEnum.AI) {
-        item.responseData = filterPublicNodeResponseData({ flowResponses: item.responseData });
+        item.responseData = filterPublicNodeResponseData({
+          flowResponses: item.responseData,
+          responseDetail
+        });
+
+        if (showNodeStatus === false) {
+          item.value = item.value.filter((v) => v.type !== ChatItemValueTypeEnum.tool);
+        }
       }
     });
   }
 
   return {
-    list: isPlugin ? histories : transformPreviewHistories(histories),
+    list: isPlugin ? histories : transformPreviewHistories(histories, responseDetail),
     total
   };
 }

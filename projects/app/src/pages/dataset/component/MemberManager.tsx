@@ -1,4 +1,4 @@
-import { Box, Button, Flex, FormLabel } from '@chakra-ui/react';
+import { Box, Flex } from '@chakra-ui/react';
 import React from 'react';
 import CollaboratorContextProvider, {
   MemberManagerInputPropsType
@@ -15,11 +15,11 @@ function MemberManager({ managePer }: { managePer: MemberManagerInputPropsType }
           return (
             <>
               <Flex alignItems="center" flexDirection="row" justifyContent="space-between" w="full">
-                <Box>
-                  <FormLabel fontSize={'mini'}>{t('common:permission.Collaborator')}</FormLabel>
+                <Box color={'myGray.900'} fontSize={'mini'} fontWeight={'bold'}>
+                  {t('common:permission.Collaborator')}
                 </Box>
-                <Flex gap={0.5}>
-                  <Box p={1}>
+                <Flex gap={2}>
+                  <Box>
                     <MyIcon
                       onClick={onOpenManageModal}
                       name="common/setting"
@@ -30,7 +30,7 @@ function MemberManager({ managePer }: { managePer: MemberManagerInputPropsType }
                       _hover={{ color: 'primary.500' }}
                     />
                   </Box>
-                  <Box p={1}>
+                  <Box>
                     <MyIcon
                       cursor={'pointer'}
                       onClick={onOpenAddMember}

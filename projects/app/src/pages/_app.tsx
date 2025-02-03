@@ -13,6 +13,8 @@ import '@/web/styles/reset.scss';
 import NextHead from '@/components/common/NextHead';
 import { ReactElement, useEffect } from 'react';
 import { NextPage } from 'next';
+import { getWebReqUrl } from '@fastgpt/web/common/system/utils';
+import SystemStoreContextProvider from '@fastgpt/web/context/useSystem';
 
 type NextPageWithLayout = NextPage & {
   setLayout?: (page: ReactElement) => JSX.Element;
@@ -49,16 +51,18 @@ function App({ Component, pageProps }: AppPropsWithLayout) {
           process.env.SYSTEM_DESCRIPTION ||
           `${title}${t('app:intro')}`
         }
-        icon={feConfigs?.favicon || process.env.SYSTEM_FAVICON}
+        icon={getWebReqUrl(feConfigs?.favicon || process.env.SYSTEM_FAVICON)}
       />
       {scripts?.map((item, i) => <Script key={i} strategy="lazyOnload" {...item}></Script>)}
 
       <QueryClientContext>
-        <I18nContextProvider>
-          <ChakraUIContext>
-            <Layout>{setLayout(<Component {...pageProps} />)}</Layout>
-          </ChakraUIContext>
-        </I18nContextProvider>
+        <SystemStoreContextProvider device={pageProps.deviceSize}>
+          <I18nContextProvider>
+            <ChakraUIContext>
+              <Layout>{setLayout(<Component {...pageProps} />)}</Layout>
+            </ChakraUIContext>
+          </I18nContextProvider>
+        </SystemStoreContextProvider>
       </QueryClientContext>
     </>
   );

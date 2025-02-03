@@ -1,24 +1,25 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useChatBox } from '@/components/core/chat/ChatContainer/ChatBox/hooks/useChatBox';
 import type { ChatItemType } from '@fastgpt/global/core/chat/type.d';
 import { Box, IconButton } from '@chakra-ui/react';
 import { useTranslation } from 'next-i18next';
 import MyIcon from '@fastgpt/web/components/common/Icon';
-import { useRouter } from 'next/router';
 import MyMenu from '@fastgpt/web/components/common/MyMenu';
+import { useContextSelector } from 'use-context-selector';
+import { ChatContext } from '@/web/core/chat/context/chatContext';
+import { ChatItemContext } from '@/web/core/chat/context/chatItemContext';
+import { useRouter } from 'next/router';
 
-const ToolMenu = ({
-  history,
-  onRouteToAppDetail
-}: {
-  history: ChatItemType[];
-  onRouteToAppDetail?: () => void;
-}) => {
+const ToolMenu = ({ history }: { history: ChatItemType[] }) => {
+  const router = useRouter();
   const { t } = useTranslation();
   const { onExportChat } = useChatBox();
-  const router = useRouter();
 
-  return history.length > 0 ? (
+  const onChangeChatId = useContextSelector(ChatContext, (v) => v.onChangeChatId);
+  const chatData = useContextSelector(ChatItemContext, (v) => v.chatBoxData);
+  const showRouteToAppDetail = useContextSelector(ChatItemContext, (v) => v.showRouteToAppDetail);
+
+  return (
     <MyMenu
       Button={
         <IconButton
@@ -35,12 +36,7 @@ const ToolMenu = ({
               icon: 'core/chat/chatLight',
               label: t('common:core.chat.New Chat'),
               onClick: () => {
-                router.replace({
-                  query: {
-                    ...router.query,
-                    chatId: ''
-                  }
-                });
+                onChangeChatId();
               }
             }
           ]
@@ -64,14 +60,14 @@ const ToolMenu = ({
             // }
           ]
         },
-        ...(onRouteToAppDetail
+        ...(showRouteToAppDetail
           ? [
               {
                 children: [
                   {
                     icon: 'core/app/aiLight',
                     label: t('app:app_detail'),
-                    onClick: onRouteToAppDetail
+                    onClick: () => router.push(`/app/detail?appId=${chatData.appId}`)
                   }
                 ]
               }
@@ -79,8 +75,6 @@ const ToolMenu = ({
           : [])
       ]}
     />
-  ) : (
-    <Box w={'28px'} h={'28px'} />
   );
 };
 

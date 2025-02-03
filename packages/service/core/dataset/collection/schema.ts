@@ -1,4 +1,4 @@
-import { connectionMongo, getMongoModel, type Model } from '../../../common/mongo';
+import { connectionMongo, getMongoModel } from '../../../common/mongo';
 const { Schema, model, models } = connectionMongo;
 import { DatasetCollectionSchemaType } from '@fastgpt/global/core/dataset/type.d';
 import { TrainingTypeMap, DatasetCollectionTypeMap } from '@fastgpt/global/core/dataset/constants';
@@ -82,17 +82,29 @@ const DatasetCollectionSchema = new Schema({
   },
   // web link collection
   rawLink: String,
+  // api collection
+  apiFileId: String,
   // external collection
   externalFileId: String,
+  externalFileUrl: String, // external import url
+
+  // next sync time
+  nextSyncTime: Date,
 
   // metadata
   rawTextLength: Number,
   hashRawText: String,
-  externalFileUrl: String, // external import url
   metadata: {
     type: Object,
     default: {}
   }
+});
+
+DatasetCollectionSchema.virtual('dataset', {
+  ref: DatasetCollectionName,
+  localField: 'datasetId',
+  foreignField: '_id',
+  justOne: true
 });
 
 try {
@@ -111,6 +123,16 @@ try {
   DatasetCollectionSchema.index({ teamId: 1, datasetId: 1, tags: 1 });
   // create time filter
   DatasetCollectionSchema.index({ teamId: 1, datasetId: 1, createTime: 1 });
+
+  // next sync time filter
+  DatasetCollectionSchema.index(
+    { type: 1, nextSyncTime: -1 },
+    {
+      partialFilterExpression: {
+        nextSyncTime: { $exists: true }
+      }
+    }
+  );
 
   // Get collection by external file id
   DatasetCollectionSchema.index(

@@ -4,11 +4,14 @@ import {
   SseResponseEventEnum
 } from '@fastgpt/global/core/workflow/runtime/constants';
 import { DispatchNodeResultType } from '@fastgpt/global/core/workflow/runtime/type';
-import { getReferenceVariableValue } from '@fastgpt/global/core/workflow/runtime/utils';
+import {
+  getReferenceVariableValue,
+  replaceEditorVariable
+} from '@fastgpt/global/core/workflow/runtime/utils';
 import { TUpdateListItem } from '@fastgpt/global/core/workflow/template/system/variableUpdate/type';
 import { ModuleDispatchProps } from '@fastgpt/global/core/workflow/runtime/type';
 import { removeSystemVariable, valueTypeFormat } from '../utils';
-import { replaceEditorVariable } from '@fastgpt/global/core/workflow/utils';
+import { isValidReferenceValue } from '@fastgpt/global/core/workflow/utils';
 
 type Props = ModuleDispatchProps<{
   [NodeInputKeyEnum.updateList]: TUpdateListItem[];
@@ -16,29 +19,37 @@ type Props = ModuleDispatchProps<{
 type Response = DispatchNodeResultType<{}>;
 
 export const dispatchUpdateVariable = async (props: Props): Promise<Response> => {
-  const { params, variables, runtimeNodes, workflowStreamResponse, node } = props;
+  const { params, variables, runtimeNodes, workflowStreamResponse, externalProvider } = props;
 
   const { updateList } = params;
-  const result = updateList.map((item) => {
-    const varNodeId = item.variable?.[0];
-    const varKey = item.variable?.[1];
+  const nodeIds = runtimeNodes.map((node) => node.nodeId);
 
-    if (!varNodeId || !varKey) {
+  const result = updateList.map((item) => {
+    const variable = item.variable;
+
+    if (!isValidReferenceValue(variable, nodeIds)) {
+      return null;
+    }
+
+    const varNodeId = variable[0];
+    const varKey = variable[1];
+
+    if (!varKey) {
       return null;
     }
 
     const value = (() => {
+      // If first item is empty, it means it is a input value
       if (!item.value?.[0]) {
-        const formatValue = valueTypeFormat(item.value?.[1], item.valueType);
-
-        return typeof formatValue === 'string'
-          ? replaceEditorVariable({
-              text: formatValue,
-              nodes: runtimeNodes,
-              variables,
-              runningNode: node
-            })
-          : formatValue;
+        const val =
+          typeof item.value?.[1] === 'string'
+            ? replaceEditorVariable({
+                text: item.value?.[1],
+                nodes: runtimeNodes,
+                variables
+              })
+            : item.value?.[1];
+        return valueTypeFormat(val, item.valueType);
       } else {
         return getReferenceVariableValue({
           value: item.value,
@@ -48,6 +59,7 @@ export const dispatchUpdateVariable = async (props: Props): Promise<Response> =>
       }
     })();
 
+    // Update node output
     // Global variable
     if (varNodeId === VARIABLE_NODE_ID) {
       variables[varKey] = value;
@@ -68,10 +80,11 @@ export const dispatchUpdateVariable = async (props: Props): Promise<Response> =>
 
   workflowStreamResponse?.({
     event: SseResponseEventEnum.updateVariables,
-    data: removeSystemVariable(variables)
+    data: removeSystemVariable(variables, externalProvider.externalWorkflowVariables)
   });
 
   return {
+    [DispatchNodeResponseKeyEnum.newVariables]: variables,
     [DispatchNodeResponseKeyEnum.nodeResponse]: {
       updateVarResult: result
     }

@@ -18,8 +18,9 @@ export const VariableUpdateNode: FlowNodeTemplateType = {
   name: i18nT('workflow:variable_update'),
   intro: i18nT('workflow:update_specified_node_output_or_global_variable'),
   showStatus: false,
-  isTool: false,
+  isTool: true,
   version: '481',
+  courseUrl: '/docs/guide/workbench/workflow/variable_update/',
   inputs: [
     {
       key: NodeInputKeyEnum.updateList,

@@ -1,7 +1,7 @@
 import MyIcon from '@fastgpt/web/components/common/Icon';
 import MyTooltip from '@fastgpt/web/components/common/MyTooltip';
 import { Box, Button, Flex, ModalBody, useDisclosure, Switch } from '@chakra-ui/react';
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useTranslation } from 'next-i18next';
 import type { AppWhisperConfigType } from '@fastgpt/global/core/app/type.d';
 import MyModal from '@fastgpt/web/components/common/MyModal';
@@ -24,17 +24,14 @@ const WhisperConfig = ({
   const isOpenWhisper = value.open;
   const isAutoSend = value.autoSend;
 
-  const formLabel = useMemo(() => {
-    if (!isOpenWhisper) {
-      return t('common:core.app.whisper.Close');
-    }
-    return t('common:core.app.whisper.Open');
-  }, [t, isOpenWhisper]);
+  const formLabel = isOpenWhisper
+    ? t('common:core.app.whisper.Open')
+    : t('common:core.app.whisper.Close');
 
   return (
     <Flex alignItems={'center'}>
       <MyIcon name={'core/app/simpleMode/whisper'} mr={2} w={'20px'} />
-      <FormLabel>{t('common:core.app.Whisper')}</FormLabel>
+      <FormLabel color={'myGray.600'}>{t('common:core.app.Whisper')}</FormLabel>
       <Box flex={1} />
       <MyTooltip label={t('common:core.app.Config whisper')}>
         <Button
@@ -42,6 +39,7 @@ const WhisperConfig = ({
           iconSpacing={1}
           size={'sm'}
           mr={'-5px'}
+          color={'myGray.600'}
           onClick={onOpen}
         >
           {formLabel}

@@ -9,3 +9,14 @@ export const getUserFingerprint = async () => {
 export const hasHttps = () => {
   return window.location.protocol === 'https:';
 };
+
+export const subRoute = process.env.NEXT_PUBLIC_BASE_URL;
+
+export const getWebReqUrl = (url: string = '') => {
+  if (!url) return '/';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  if (!baseUrl) return url;
+
+  if (!url.startsWith('/') || url.startsWith(baseUrl)) return url;
+  return `${baseUrl}${url}`;
+};

@@ -16,6 +16,8 @@ import { datasetSearchQueryExtension } from '../../../dataset/search/utils';
 import { ChatNodeUsageType } from '@fastgpt/global/support/wallet/bill/type';
 import { checkTeamReRankPermission } from '../../../../support/permission/teamLimit';
 import { MongoDataset } from '../../../dataset/schema';
+import { i18nT } from '../../../../../web/i18n/utils';
+import { filterDatasetsByTmbId } from '../../../dataset/utils';
 
 type DatasetSearchProps = ModuleDispatchProps<{
   [NodeInputKeyEnum.datasetSelectList]: SelectedDatasetType;
@@ -28,6 +30,7 @@ type DatasetSearchProps = ModuleDispatchProps<{
   [NodeInputKeyEnum.datasetSearchExtensionModel]: string;
   [NodeInputKeyEnum.datasetSearchExtensionBg]: string;
   [NodeInputKeyEnum.collectionFilterMatch]: string;
+  [NodeInputKeyEnum.authTmbId]: boolean;
 }>;
 export type DatasetSearchResponse = DispatchNodeResultType<{
   [NodeOutputKeyEnum.datasetQuoteQA]: SearchDataResponseItemType[];
@@ -38,6 +41,7 @@ export async function dispatchDatasetSearch(
 ): Promise<DatasetSearchResponse> {
   const {
     runningAppInfo: { teamId },
+    runningUserInfo: { tmbId },
     histories,
     node,
     params: {
@@ -51,20 +55,33 @@ export async function dispatchDatasetSearch(
       datasetSearchUsingExtensionQuery,
       datasetSearchExtensionModel,
       datasetSearchExtensionBg,
-      collectionFilterMatch
+      collectionFilterMatch,
+      authTmbId = false
     }
   } = props as DatasetSearchProps;
 
   if (!Array.isArray(datasets)) {
-    return Promise.reject('Quote type error');
+    return Promise.reject(i18nT('chat:dataset_quote_type error'));
   }
 
   if (datasets.length === 0) {
-    return Promise.reject('core.chat.error.Select dataset empty');
+    return Promise.reject(i18nT('common:core.chat.error.Select dataset empty'));
   }
 
+  const emptyResult = {
+    quoteQA: [],
+    [DispatchNodeResponseKeyEnum.nodeResponse]: {
+      totalPoints: 0,
+      query: '',
+      limit,
+      searchMode
+    },
+    nodeDispatchUsages: [],
+    [DispatchNodeResponseKeyEnum.toolResponses]: []
+  };
+
   if (!userChatInput) {
-    return Promise.reject('core.chat.error.User input empty');
+    return emptyResult;
   }
 
   // query extension
@@ -72,13 +89,24 @@ export async function dispatchDatasetSearch(
     ? getLLMModel(datasetSearchExtensionModel)
     : undefined;
 
-  const { concatQueries, rewriteQuery, aiExtensionResult } = await datasetSearchQueryExtension({
-    query: userChatInput,
-    extensionModel,
-    extensionBg: datasetSearchExtensionBg,
-    histories: getHistories(6, histories)
-  });
+  const [{ concatQueries, rewriteQuery, aiExtensionResult }, datasetIds] = await Promise.all([
+    datasetSearchQueryExtension({
+      query: userChatInput,
+      extensionModel,
+      extensionBg: datasetSearchExtensionBg,
+      histories: getHistories(6, histories)
+    }),
+    authTmbId
+      ? filterDatasetsByTmbId({
+          datasetIds: datasets.map((item) => item.datasetId),
+          tmbId
+        })
+      : Promise.resolve(datasets.map((item) => item.datasetId))
+  ]);
 
+  if (datasetIds.length === 0) {
+    return emptyResult;
+  }
   // console.log(concatQueries, rewriteQuery, aiExtensionResult);
 
   // get vector
@@ -99,7 +127,7 @@ export async function dispatchDatasetSearch(
     model: vectorModel.model,
     similarity,
     limit,
-    datasetIds: datasets.map((item) => item.datasetId),
+    datasetIds,
     searchMode,
     usingReRank: usingReRank && (await checkTeamReRankPermission(teamId)),
     collectionFilterMatch
@@ -109,14 +137,14 @@ export async function dispatchDatasetSearch(
   // vector
   const { totalPoints, modelName } = formatModelChars2Points({
     model: vectorModel.model,
-    tokens,
+    inputTokens: tokens,
     modelType: ModelTypeEnum.vector
   });
   const responseData: DispatchNodeResponseType & { totalPoints: number } = {
     totalPoints,
     query: concatQueries.join('\n'),
     model: modelName,
-    tokens,
+    inputTokens: tokens,
     similarity: usingSimilarityFilter ? similarity : undefined,
     limit,
     searchMode,
@@ -128,19 +156,21 @@ export async function dispatchDatasetSearch(
       totalPoints,
       moduleName: node.name,
       model: modelName,
-      tokens
+      inputTokens: tokens
     }
   ];
 
   if (aiExtensionResult) {
     const { totalPoints, modelName } = formatModelChars2Points({
       model: aiExtensionResult.model,
-      tokens: aiExtensionResult.tokens,
+      inputTokens: aiExtensionResult.inputTokens,
+      outputTokens: aiExtensionResult.outputTokens,
       modelType: ModelTypeEnum.llm
     });
 
     responseData.totalPoints += totalPoints;
-    responseData.tokens = aiExtensionResult.tokens;
+    responseData.inputTokens = aiExtensionResult.inputTokens;
+    responseData.outputTokens = aiExtensionResult.outputTokens;
     responseData.extensionModel = modelName;
     responseData.extensionResult =
       aiExtensionResult.extensionQueries?.join('\n') ||
@@ -150,7 +180,8 @@ export async function dispatchDatasetSearch(
       totalPoints,
       moduleName: 'core.module.template.Query extension',
       model: modelName,
-      tokens: aiExtensionResult.tokens
+      inputTokens: aiExtensionResult.inputTokens,
+      outputTokens: aiExtensionResult.outputTokens
     });
   }
 

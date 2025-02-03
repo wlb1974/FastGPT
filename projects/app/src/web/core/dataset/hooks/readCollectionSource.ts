@@ -3,8 +3,11 @@ import { getCollectionSource } from '@/web/core/dataset/api';
 import { getErrText } from '@fastgpt/global/common/error/utils';
 import { useToast } from '@fastgpt/web/hooks/useToast';
 import { useTranslation } from 'next-i18next';
+import type { readCollectionSourceBody } from '@/pages/api/core/dataset/collection/read';
 
-export function getCollectionSourceAndOpen(collectionId: string) {
+export function getCollectionSourceAndOpen(
+  props: { collectionId: string } & readCollectionSourceBody
+) {
   const { toast } = useToast();
   const { t } = useTranslation();
   const { setLoading } = useSystemStore();
@@ -12,7 +15,8 @@ export function getCollectionSourceAndOpen(collectionId: string) {
   return async () => {
     try {
       setLoading(true);
-      const { value: url } = await getCollectionSource(collectionId);
+
+      const { value: url } = await getCollectionSource(props);
 
       if (!url) {
         throw new Error('No file found');
@@ -25,7 +29,7 @@ export function getCollectionSourceAndOpen(collectionId: string) {
       }
     } catch (error) {
       toast({
-        title: getErrText(error, t('common:error.fileNotFound')),
+        title: t(getErrText(error, t('common:error.fileNotFound'))),
         status: 'error'
       });
     }

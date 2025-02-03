@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useContextSelector } from 'use-context-selector';
 import { AppContext } from '../context';
 import FolderPath from '@/components/common/folder/Path';
@@ -9,7 +9,6 @@ import { useRouter } from 'next/router';
 import RouteTab from '../RouteTab';
 import { useTranslation } from 'next-i18next';
 import { AppSimpleEditFormType } from '@fastgpt/global/core/app/type';
-import { AppTypeEnum } from '@fastgpt/global/core/app/constants';
 import { form2AppWorkflow } from '@/web/core/app/utils';
 import { TabEnum } from '../context';
 import MyIcon from '@fastgpt/web/components/common/Icon';
@@ -20,7 +19,7 @@ import { formatTime2YMDHMS } from '@fastgpt/global/common/string/time';
 import { useSystemStore } from '@/web/common/system/useSystemStore';
 import { useDatasetStore } from '@/web/core/dataset/store/dataset';
 import SaveButton from '../Workflow/components/SaveButton';
-import { useBoolean, useDebounceEffect } from 'ahooks';
+import { useBoolean, useDebounceEffect, useLockFn } from 'ahooks';
 import { appWorkflow2Form } from '@fastgpt/global/core/app/utils';
 import {
   compareSimpleAppSnapshot,
@@ -29,6 +28,8 @@ import {
 } from './useSnapshots';
 import PublishHistories from '../PublishHistoriesSlider';
 import { AppVersionSchemaType } from '@fastgpt/global/core/app/version';
+import { useBeforeunload } from '@fastgpt/web/hooks/useBeforeunload';
+import { isProduction } from '@fastgpt/global/common/system/constants';
 
 const Header = ({
   forbiddenSaveSnapshot,
@@ -48,7 +49,10 @@ const Header = ({
   const { t } = useTranslation();
   const { isPc } = useSystem();
   const router = useRouter();
-  const { appId, onSaveApp, currentTab } = useContextSelector(AppContext, (v) => v);
+  const appId = useContextSelector(AppContext, (v) => v.appId);
+  const onSaveApp = useContextSelector(AppContext, (v) => v.onSaveApp);
+  const currentTab = useContextSelector(AppContext, (v) => v.currentTab);
+
   const { lastAppListRouteType } = useSystemStore();
   const { allDatasets } = useDatasetStore();
 
@@ -72,19 +76,21 @@ const Header = ({
   const { runAsync: onClickSave, loading } = useRequest2(
     async ({
       isPublish,
-      versionName = formatTime2YMDHMS(new Date())
+      versionName = formatTime2YMDHMS(new Date()),
+      autoSave
     }: {
       isPublish?: boolean;
       versionName?: string;
+      autoSave?: boolean;
     }) => {
       const { nodes, edges } = form2AppWorkflow(appForm, t);
       await onSaveApp({
         nodes,
         edges,
         chatConfig: appForm.chatConfig,
-        type: AppTypeEnum.simple,
         isPublish,
-        versionName
+        versionName,
+        autoSave
       });
       setPast((prevPast) =>
         prevPast.map((item, index) =>
@@ -139,16 +145,37 @@ const Header = ({
   );
 
   // Check if the workflow is published
-  const [isPublished, setIsPublished] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   useDebounceEffect(
     () => {
       const savedSnapshot = past.find((snapshot) => snapshot.isSaved);
       const val = compareSimpleAppSnapshot(savedSnapshot?.appForm, appForm);
-      setIsPublished(val);
+      setIsSaved(val);
     },
     [past, allDatasets],
     { wait: 500 }
   );
+
+  const onLeaveAutoSave = useLockFn(async () => {
+    if (isSaved) return;
+    try {
+      console.log('Leave auto save');
+      return onClickSave({ isPublish: false, autoSave: true });
+    } catch (error) {
+      console.error(error);
+    }
+  });
+  useEffect(() => {
+    return () => {
+      if (isProduction) {
+        onLeaveAutoSave();
+      }
+    };
+  }, []);
+  useBeforeunload({
+    tip: t('common:core.common.tip.leave page'),
+    callback: onLeaveAutoSave
+  });
 
   return (
     <Box h={14}>
@@ -182,13 +209,13 @@ const Header = ({
                     type={'borderFill'}
                     showDot
                     colorSchema={
-                      isPublished
+                      isSaved
                         ? publishStatusStyle.published.colorSchema
                         : publishStatusStyle.unPublish.colorSchema
                     }
                   >
                     {t(
-                      isPublished
+                      isSaved
                         ? publishStatusStyle.published.text
                         : publishStatusStyle.unPublish.text
                     )}

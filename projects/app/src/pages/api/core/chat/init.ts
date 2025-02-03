@@ -6,7 +6,7 @@ import { getChatModelNameListByModules } from '@/service/core/app/workflow';
 import type { InitChatProps, InitChatResponse } from '@/global/core/chat/api.d';
 import { MongoChat } from '@fastgpt/service/core/chat/chatSchema';
 import { ChatErrEnum } from '@fastgpt/global/common/error/code/chat';
-import { getAppLatestVersion } from '@fastgpt/service/core/app/controller';
+import { getAppLatestVersion } from '@fastgpt/service/core/app/version/controller';
 import { NextAPI } from '@/service/middleware/entry';
 import { ReadPermissionVal } from '@fastgpt/global/support/permission/constant';
 import { FlowNodeTypeEnum } from '@fastgpt/global/core/workflow/node/constant';
@@ -15,7 +15,7 @@ async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ): Promise<InitChatResponse | void> {
-  let { appId, chatId, loadCustomFeedbacks } = req.query as InitChatProps;
+  let { appId, chatId } = req.query as InitChatProps;
 
   if (!appId) {
     return jsonRes(res, {
@@ -29,6 +29,7 @@ async function handler(
     authApp({
       req,
       authToken: true,
+      authApiKey: true,
       appId,
       per: ReadPermissionVal
     }),
@@ -37,21 +38,23 @@ async function handler(
 
   // auth chat permission
   if (chat && !app.permission.hasManagePer && String(tmbId) !== String(chat?.tmbId)) {
-    throw new Error(ChatErrEnum.unAuthChat);
+    return Promise.reject(ChatErrEnum.unAuthChat);
   }
 
   // get app and history
   const { nodes, chatConfig } = await getAppLatestVersion(app._id, app);
 
   const pluginInputs =
-    app?.modules?.find((node) => node.flowNodeType === FlowNodeTypeEnum.pluginInput)?.inputs ?? [];
+    chat?.pluginInputs ??
+    nodes?.find((node) => node.flowNodeType === FlowNodeTypeEnum.pluginInput)?.inputs ??
+    [];
 
   return {
     chatId,
     appId,
     title: chat?.title,
     userAvatar: undefined,
-    variables: chat?.variables || {},
+    variables: chat?.variables,
     app: {
       chatConfig: getAppChatConfig({
         chatConfig,

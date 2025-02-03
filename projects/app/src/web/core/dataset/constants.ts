@@ -8,7 +8,6 @@ import type {
   DatasetCollectionItemType,
   DatasetItemType
 } from '@fastgpt/global/core/dataset/type.d';
-import { DatasetDefaultPermissionVal } from '@fastgpt/global/support/permission/dataset/constant';
 import { DatasetPermission } from '@fastgpt/global/support/permission/dataset/controller';
 
 export const defaultDatasetDetail: DatasetItemType = {
@@ -26,7 +25,6 @@ export const defaultDatasetDetail: DatasetItemType = {
   permission: new DatasetPermission(),
   vectorModel: defaultVectorModels[0],
   agentModel: defaultQAModels[0],
-  defaultPermission: DatasetDefaultPermissionVal,
   inheritPermission: true
 };
 
@@ -34,7 +32,8 @@ export const defaultCollectionDetail: DatasetCollectionItemType = {
   _id: '',
   teamId: '',
   tmbId: '',
-  datasetId: {
+  datasetId: '',
+  dataset: {
     _id: '',
     parentId: '',
     userId: '',
@@ -48,7 +47,6 @@ export const defaultCollectionDetail: DatasetCollectionItemType = {
     status: 'active',
     vectorModel: defaultVectorModels[0].model,
     agentModel: defaultQAModels[0].model,
-    defaultPermission: DatasetDefaultPermissionVal,
     inheritPermission: true
   },
   tags: [],
@@ -68,3 +66,13 @@ export enum ImportProcessWayEnum {
   auto = 'auto',
   custom = 'custom'
 }
+
+export const datasetTypeCourseMap: Record<`${DatasetTypeEnum}`, string> = {
+  [DatasetTypeEnum.folder]: '',
+  [DatasetTypeEnum.dataset]: '',
+  [DatasetTypeEnum.apiDataset]: '/docs/guide/knowledge_base/api_dataset/',
+  [DatasetTypeEnum.websiteDataset]: '/docs/guide/knowledge_base/websync/',
+  [DatasetTypeEnum.feishu]: '/docs/guide/knowledge_base/lark_dataset/',
+  [DatasetTypeEnum.yuque]: '/docs/guide/knowledge_base/yuque_dataset/',
+  [DatasetTypeEnum.externalFile]: ''
+};

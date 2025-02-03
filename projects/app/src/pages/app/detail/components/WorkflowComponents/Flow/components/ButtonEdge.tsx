@@ -6,12 +6,15 @@ import { NodeOutputKeyEnum, RuntimeEdgeStatusEnum } from '@fastgpt/global/core/w
 import { useContextSelector } from 'use-context-selector';
 import { WorkflowContext } from '../../context';
 import { useThrottleEffect } from 'ahooks';
+import { WorkflowNodeEdgeContext, WorkflowInitContext } from '../../context/workflowInitContext';
+import { WorkflowEventContext } from '../../context/workflowEventContext';
 
 const ButtonEdge = (props: EdgeProps) => {
-  const { nodes, nodeList, setEdges, workflowDebugData, hoverEdgeId } = useContextSelector(
-    WorkflowContext,
-    (v) => v
-  );
+  const nodes = useContextSelector(WorkflowInitContext, (v) => v.nodes);
+  const onEdgesChange = useContextSelector(WorkflowNodeEdgeContext, (v) => v.onEdgesChange);
+  const nodeList = useContextSelector(WorkflowContext, (v) => v.nodeList);
+  const workflowDebugData = useContextSelector(WorkflowContext, (v) => v.workflowDebugData);
+  const hoverEdgeId = useContextSelector(WorkflowEventContext, (v) => v.hoverEdgeId);
 
   const {
     id,
@@ -31,24 +34,29 @@ const ButtonEdge = (props: EdgeProps) => {
 
   // If parentNode is folded, the edge will not be displayed
   const parentNode = useMemo(() => {
-    return nodeList.find(
-      (node) => (node.nodeId === source || node.nodeId === target) && node.parentNodeId
-    );
+    for (const node of nodeList) {
+      if ((node.nodeId === source || node.nodeId === target) && node.parentNodeId) {
+        return nodeList.find((parent) => parent.nodeId === node.parentNodeId);
+      }
+    }
+    return undefined;
   }, [nodeList, source, target]);
 
   const defaultZIndex = useMemo(
-    () => (nodeList.find((node) => node.nodeId === source && node.parentNodeId) ? 1001 : 0),
+    () => (nodeList.find((node) => node.nodeId === source && node.parentNodeId) ? 2002 : 0),
     [nodeList, source]
   );
 
   const onDelConnect = useCallback(
     (id: string) => {
-      setEdges((state) => {
-        const newState = state.filter((item) => item.id !== id);
-        return newState;
-      });
+      onEdgesChange([
+        {
+          type: 'remove',
+          id
+        }
+      ]);
     },
-    [setEdges]
+    [onEdgesChange]
   );
 
   // Selected edge or source/target node selected
@@ -114,13 +122,13 @@ const ButtonEdge = (props: EdgeProps) => {
       (edge) => edge.sourceHandle === sourceHandleId && edge.targetHandle === targetHandleId
     );
     if (!targetEdge) {
-      if (highlightEdge) return '#3370ff';
+      if (highlightEdge) return '#487FFF';
       return '#94B5FF';
     }
 
     // debug mode
     const colorMap = {
-      [RuntimeEdgeStatusEnum.active]: '#39CC83',
+      [RuntimeEdgeStatusEnum.active]: '#487FFF',
       [RuntimeEdgeStatusEnum.waiting]: '#5E8FFF',
       [RuntimeEdgeStatusEnum.skipped]: '#8A95A7'
     };
@@ -152,12 +160,12 @@ const ButtonEdge = (props: EdgeProps) => {
             position={'absolute'}
             transform={`translate(-55%, -50%) translate(${labelX}px,${labelY}px)`}
             pointerEvents={'all'}
-            w={'17px'}
-            h={'17px'}
+            w={'18px'}
+            h={'18px'}
             bg={'white'}
-            borderRadius={'17px'}
+            borderRadius={'18px'}
             cursor={'pointer'}
-            zIndex={9999}
+            zIndex={defaultZIndex + 1000}
             onClick={() => onDelConnect(id)}
           >
             <MyIcon name={'core/workflow/closeEdge'} w={'100%'}></MyIcon>
@@ -169,21 +177,15 @@ const ButtonEdge = (props: EdgeProps) => {
               position={'absolute'}
               transform={arrowTransform}
               pointerEvents={'all'}
-              w={highlightEdge ? '14px' : '10px'}
-              h={highlightEdge ? '14px' : '10px'}
-              // bg={'white'}
-              zIndex={highlightEdge ? 1000 : defaultZIndex}
+              w={highlightEdge ? '12px' : '10px'}
+              h={highlightEdge ? '12px' : '10px'}
+              zIndex={highlightEdge ? defaultZIndex + 1000 : defaultZIndex}
             >
               <MyIcon
-                name={'core/workflow/edgeArrow'}
+                name={highlightEdge ? 'core/workflow/edgeArrowBold' : 'core/workflow/edgeArrow'}
                 w={'100%'}
                 color={edgeColor}
-                {...(highlightEdge
-                  ? {
-                      fontWeight: 'bold'
-                    }
-                  : {})}
-              ></MyIcon>
+              />
             </Flex>
           )}
         </Box>
@@ -216,7 +218,7 @@ const ButtonEdge = (props: EdgeProps) => {
           ...style,
           ...(highlightEdge
             ? {
-                strokeWidth: 5
+                strokeWidth: 4
               }
             : { strokeWidth: 3, zIndex: 2 })
         };

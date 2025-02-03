@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo } from 'react';
-import { Box, Button, Card, Flex, Image } from '@chakra-ui/react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Box, Button, Card, Flex, FlexProps } from '@chakra-ui/react';
 import MyIcon from '@fastgpt/web/components/common/Icon';
 import Avatar from '@fastgpt/web/components/common/Avatar';
 import type { FlowNodeItemType } from '@fastgpt/global/core/workflow/type/node.d';
@@ -15,16 +15,20 @@ import { ConnectionSourceHandle, ConnectionTargetHandle } from './Handle/Connect
 import { useDebug } from '../../hooks/useDebug';
 import EmptyTip from '@fastgpt/web/components/common/EmptyTip';
 import { getPreviewPluginNode } from '@/web/core/app/api/plugin';
-import { storeNode2FlowNode, getLatestNodeTemplate } from '@/web/core/workflow/utils';
+import { storeNode2FlowNode } from '@/web/core/workflow/utils';
 import { getNanoid } from '@fastgpt/global/common/string/tools';
 import { useContextSelector } from 'use-context-selector';
 import { WorkflowContext } from '../../../context';
 import { moduleTemplatesFlat } from '@fastgpt/global/core/workflow/template/constants';
-import { QuestionOutlineIcon } from '@chakra-ui/icons';
 import MyTooltip from '@fastgpt/web/components/common/MyTooltip';
 import { useRequest2 } from '@fastgpt/web/hooks/useRequest';
 import { useWorkflowUtils } from '../../hooks/useUtils';
 import { WholeResponseContent } from '@/components/core/chat/components/WholeResponseModal';
+import { WorkflowNodeEdgeContext } from '../../../context/workflowInitContext';
+import { WorkflowEventContext } from '../../../context/workflowEventContext';
+import MyImage from '@fastgpt/web/components/common/Image/MyImage';
+import MyIconButton from '@fastgpt/web/components/common/Icon/button';
+import UseGuideModal from '@/components/common/Modal/UseGuideModal';
 
 type Props = FlowNodeItemType & {
   children?: React.ReactNode | React.ReactNode[] | string;
@@ -39,6 +43,7 @@ type Props = FlowNodeItemType & {
     copy?: boolean;
     delete?: boolean;
   };
+  customStyle?: FlexProps;
 };
 
 const NodeCard = (props: Props) => {
@@ -52,7 +57,7 @@ const NodeCard = (props: Props) => {
     name = t('common:core.module.template.UnKnow Module'),
     intro,
     minW = '300px',
-    maxW = '600px',
+    maxW = '666px',
     minH = 0,
     w = 'full',
     h = 'full',
@@ -62,14 +67,14 @@ const NodeCard = (props: Props) => {
     isTool = false,
     isError = false,
     debugResult,
-    isFolded
+    isFolded,
+    customStyle
   } = props;
-
   const nodeList = useContextSelector(WorkflowContext, (v) => v.nodeList);
-  const setHoverNodeId = useContextSelector(WorkflowContext, (v) => v.setHoverNodeId);
   const onUpdateNodeError = useContextSelector(WorkflowContext, (v) => v.onUpdateNodeError);
   const onChangeNode = useContextSelector(WorkflowContext, (v) => v.onChangeNode);
   const onResetNode = useContextSelector(WorkflowContext, (v) => v.onResetNode);
+  const setHoverNodeId = useContextSelector(WorkflowEventContext, (v) => v.setHoverNodeId);
 
   // custom title edit
   const { onOpenModal: onOpenCustomTitleModal, EditModal: EditTitleModal } = useEditTitle({
@@ -92,11 +97,7 @@ const NodeCard = (props: Props) => {
     return { node, parentNode };
   }, [nodeList, nodeId]);
 
-  const { openConfirm: onOpenConfirmSync, ConfirmModal: ConfirmSyncModal } = useConfirm({
-    content: t('app:module.Confirm Sync')
-  });
-
-  const { data: nodeTemplate, runAsync: getNodeLatestTemplate } = useRequest2(
+  const { data: nodeTemplate } = useRequest2(
     async () => {
       if (
         node?.flowNodeType === FlowNodeTypeEnum.pluginModule ||
@@ -104,14 +105,6 @@ const NodeCard = (props: Props) => {
       ) {
         if (!node?.pluginId) return;
         const template = await getPreviewPluginNode({ appId: node.pluginId });
-
-        // Focus update plugin latest inputExplanationUrl
-        onChangeNode({
-          nodeId,
-          type: 'attr',
-          key: 'inputExplanationUrl',
-          value: template.inputExplanationUrl
-        });
 
         return template;
       } else {
@@ -122,155 +115,190 @@ const NodeCard = (props: Props) => {
       }
     },
     {
+      onSuccess(res) {
+        if (!res) return;
+        // Execute forcibly updates the courseUrl field
+        onChangeNode({
+          nodeId,
+          type: 'attr',
+          key: 'courseUrl',
+          value: res?.courseUrl
+        });
+      },
       manual: false
     }
   );
+
+  const {
+    openConfirm: onOpenConfirmSync,
+    onClose: onCloseConfirmSync,
+    ConfirmModal: ConfirmSyncModal
+  } = useConfirm({
+    content: t('workflow:Confirm_sync_node')
+  });
+
   const hasNewVersion = nodeTemplate && nodeTemplate.version !== node?.version;
 
   const { runAsync: onClickSyncVersion } = useRequest2(
     async () => {
-      const template = moduleTemplatesFlat.find((item) => item.flowNodeType === node?.flowNodeType);
-      if (!node || !template) return;
-
-      if (
-        node?.flowNodeType === FlowNodeTypeEnum.pluginModule ||
-        node?.flowNodeType === FlowNodeTypeEnum.appModule
-      ) {
-        if (!node.pluginId) return;
+      if (!!nodeTemplate) {
         onResetNode({
           id: nodeId,
-          node: await getPreviewPluginNode({ appId: node.pluginId })
-        });
-      } else {
-        onResetNode({
-          id: nodeId,
-          node: getLatestNodeTemplate(node, template)
+          node: nodeTemplate
         });
       }
-      await getNodeLatestTemplate();
+      onCloseConfirmSync();
     },
     {
-      refreshDeps: [node, nodeId, onResetNode, getNodeLatestTemplate]
+      refreshDeps: [node, nodeId, onResetNode]
     }
   );
 
   /* Node header */
   const Header = useMemo(() => {
+    const showHeader = node?.flowNodeType !== FlowNodeTypeEnum.comment;
+
     return (
       <Box position={'relative'}>
         {/* debug */}
-        <Box px={4} py={3}>
-          {/* tool target handle */}
-          <ToolTargetHandle show={showToolHandle} nodeId={nodeId} />
+        {showHeader && (
+          <Box px={3} pt={4}>
+            {/* tool target handle */}
+            <ToolTargetHandle show={showToolHandle} nodeId={nodeId} />
 
-          {/* avatar and name */}
-          <Flex alignItems={'center'}>
-            {node?.flowNodeType !== FlowNodeTypeEnum.stopTool && (
-              <Box
-                mr={2}
-                cursor={'pointer'}
-                rounded={'sm'}
-                _hover={{ bg: 'myGray.200' }}
-                onClick={() => {
-                  onChangeNode({
-                    nodeId,
-                    type: 'attr',
-                    key: 'isFolded',
-                    value: !isFolded
-                  });
-                }}
-              >
-                <MyIcon
-                  name={isFolded ? 'core/chat/chevronDown' : 'core/chat/chevronRight'}
-                  w={'24px'}
-                  h={'24px'}
-                  color={'myGray.500'}
-                />
-              </Box>
-            )}
-            <Avatar src={avatar} borderRadius={'sm'} objectFit={'contain'} w={'30px'} h={'30px'} />
-            <Box ml={3} fontSize={'md'} fontWeight={'medium'}>
-              {t(name as any)}
-            </Box>
-            <MyIcon
-              className="controller-rename"
-              display={'none'}
-              name={'edit'}
-              w={'14px'}
-              cursor={'pointer'}
-              ml={1}
-              color={'myGray.500'}
-              _hover={{ color: 'primary.600' }}
-              onClick={() => {
-                onOpenCustomTitleModal({
-                  defaultVal: name,
-                  onSuccess: (e) => {
-                    if (!e) {
-                      return toast({
-                        title: t('app:modules.Title is required'),
-                        status: 'warning'
-                      });
-                    }
+            {/* avatar and name */}
+            <Flex alignItems={'center'} mb={1}>
+              {node?.flowNodeType !== FlowNodeTypeEnum.stopTool && (
+                <Flex
+                  alignItems={'center'}
+                  mr={1}
+                  p={1}
+                  cursor={'pointer'}
+                  rounded={'sm'}
+                  _hover={{ bg: 'myGray.200' }}
+                  onClick={() => {
                     onChangeNode({
                       nodeId,
                       type: 'attr',
-                      key: 'name',
-                      value: e
+                      key: 'isFolded',
+                      value: !isFolded
                     });
-                  }
-                });
-              }}
-            />
-            <Box flex={1} />
-            {hasNewVersion && (
-              <MyTooltip label={t('app:app.modules.click to update')}>
-                <Button
-                  bg={'yellow.50'}
-                  color={'yellow.600'}
-                  variant={'ghost'}
-                  h={8}
-                  px={2}
-                  rounded={'6px'}
-                  fontSize={'xs'}
-                  fontWeight={'medium'}
-                  cursor={'pointer'}
-                  _hover={{ bg: 'yellow.100' }}
-                  onClick={onOpenConfirmSync(onClickSyncVersion)}
+                  }}
                 >
-                  <Box>{t('app:app.modules.has new version')}</Box>
-                  <QuestionOutlineIcon ml={1} />
-                </Button>
-              </MyTooltip>
-            )}
-            {!!nodeTemplate?.diagram && !hasNewVersion && (
-              <MyTooltip
-                label={
-                  <Image src={nodeTemplate?.diagram} w={'100%'} minH={['auto', '200px']} alt={''} />
-                }
+                  <MyIcon
+                    name={!isFolded ? 'core/chat/chevronDown' : 'core/chat/chevronRight'}
+                    w={'16px'}
+                    h={'16px'}
+                    color={'myGray.500'}
+                  />
+                </Flex>
+              )}
+              <Avatar
+                src={avatar}
+                borderRadius={'sm'}
+                objectFit={'contain'}
+                w={'24px'}
+                h={'24px'}
+              />
+              <Box ml={2} fontSize={'18px'} fontWeight={'medium'} color={'myGray.900'}>
+                {t(name as any)}
+              </Box>
+              <Button
+                display={'none'}
+                variant={'grayGhost'}
+                size={'xs'}
+                ml={0.5}
+                className="controller-rename"
+                cursor={'pointer'}
+                onClick={() => {
+                  onOpenCustomTitleModal({
+                    defaultVal: name,
+                    onSuccess: (e) => {
+                      if (!e) {
+                        return toast({
+                          title: t('app:modules.Title is required'),
+                          status: 'warning'
+                        });
+                      }
+                      onChangeNode({
+                        nodeId,
+                        type: 'attr',
+                        key: 'name',
+                        value: e
+                      });
+                    }
+                  });
+                }}
               >
-                <Box
-                  fontSize={'sm'}
-                  color={'primary.700'}
-                  p={1}
-                  rounded={'sm'}
-                  cursor={'default'}
-                  _hover={{ bg: 'rgba(17, 24, 36, 0.05)' }}
+                <MyIcon name={'edit'} w={'14px'} />
+              </Button>
+              <Box flex={1} />
+              {hasNewVersion && (
+                <MyTooltip label={t('app:app.modules.click to update')}>
+                  <Button
+                    bg={'yellow.50'}
+                    color={'yellow.600'}
+                    variant={'ghost'}
+                    h={8}
+                    px={2}
+                    rounded={'6px'}
+                    fontSize={'xs'}
+                    fontWeight={'medium'}
+                    cursor={'pointer'}
+                    _hover={{ bg: 'yellow.100' }}
+                    onClick={onOpenConfirmSync(onClickSyncVersion)}
+                  >
+                    <Box>{t('app:app.modules.has new version')}</Box>
+                    <MyIcon name={'help'} w={'14px'} ml={1} />
+                  </Button>
+                </MyTooltip>
+              )}
+              {!!nodeTemplate?.diagram && !hasNewVersion && (
+                <MyTooltip
+                  label={
+                    <MyImage
+                      src={nodeTemplate?.diagram}
+                      w={'100%'}
+                      minH={['auto', '200px']}
+                      alt={''}
+                    />
+                  }
                 >
-                  {t('common:core.module.Diagram')}
-                </Box>
-              </MyTooltip>
-            )}
-          </Flex>
-          <MenuRender nodeId={nodeId} menuForbid={menuForbid} nodeList={nodeList} />
-          <NodeIntro nodeId={nodeId} intro={intro} />
-        </Box>
+                  <Button variant={'grayGhost'} size={'xs'} color={'primary.600'} px={1}>
+                    {t('common:core.module.Diagram')}
+                  </Button>
+                </MyTooltip>
+              )}
+              {!!nodeTemplate?.diagram && node?.courseUrl && (
+                <Box bg={'myGray.300'} w={'1px'} h={'12px'} ml={1} mr={0.5} />
+              )}
+              {!!(node?.courseUrl || nodeTemplate?.userGuide) && !hasNewVersion && (
+                <UseGuideModal
+                  title={nodeTemplate?.name}
+                  iconSrc={nodeTemplate?.avatar}
+                  text={nodeTemplate?.userGuide}
+                  link={nodeTemplate?.courseUrl}
+                >
+                  {({ onClick }) => (
+                    <MyTooltip label={t('workflow:Node.Open_Node_Course')}>
+                      <MyIconButton ml={1} icon="book" color={'primary.600'} onClick={onClick} />
+                    </MyTooltip>
+                  )}
+                </UseGuideModal>
+              )}
+            </Flex>
+            <NodeIntro nodeId={nodeId} intro={intro} />
+          </Box>
+        )}
+        <MenuRender nodeId={nodeId} menuForbid={menuForbid} nodeList={nodeList} />
         <ConfirmSyncModal />
       </Box>
     );
   }, [
+    node?.flowNodeType,
+    node?.courseUrl,
     showToolHandle,
     nodeId,
-    node?.flowNodeType,
     isFolded,
     avatar,
     t,
@@ -279,14 +307,19 @@ const NodeCard = (props: Props) => {
     onOpenConfirmSync,
     onClickSyncVersion,
     nodeTemplate?.diagram,
+    nodeTemplate?.userGuide,
+    nodeTemplate?.name,
+    nodeTemplate?.avatar,
+    nodeTemplate?.courseUrl,
+    intro,
     menuForbid,
     nodeList,
-    intro,
     ConfirmSyncModal,
     onChangeNode,
     onOpenCustomTitleModal,
     toast
   ]);
+
   const RenderHandle = useMemo(() => {
     return (
       <>
@@ -308,13 +341,16 @@ const NodeCard = (props: Props) => {
       maxW={maxW}
       minH={minH}
       bg={'white'}
-      borderWidth={'1px'}
-      borderRadius={'md'}
-      boxShadow={'1'}
+      outline={selected ? '2px solid' : '1px solid'}
+      borderRadius={'lg'}
+      boxShadow={
+        '0px 4px 10px 0px rgba(19, 51, 107, 0.10), 0px 0px 1px 0px rgba(19, 51, 107, 0.10)'
+      }
       w={w}
       h={h}
       _hover={{
-        boxShadow: '4',
+        boxShadow:
+          '0px 12px 16px -4px rgba(19, 51, 107, 0.20), 0px 0px 1px 0px rgba(19, 51, 107, 0.20)',
         '& .controller-menu': {
           display: 'flex'
         },
@@ -329,20 +365,24 @@ const NodeCard = (props: Props) => {
       onMouseLeave={() => setHoverNodeId(undefined)}
       {...(isError
         ? {
-            borderColor: 'red.500',
+            outlineColor: 'red.500',
             onMouseDownCapture: () => onUpdateNodeError(nodeId, false)
           }
         : {
-            borderColor: selected ? 'primary.600' : 'borderColor.base'
+            outlineColor: selected ? 'primary.600' : 'myGray.250'
           })}
+      {...customStyle}
     >
       <NodeDebugResponse nodeId={nodeId} debugResult={debugResult} />
       {Header}
-      {!isFolded && children}
+      <Flex flexDirection={'column'} flex={1} my={!isFolded ? 3 : 0} gap={2}>
+        {!isFolded ? children : <Box h={4} />}
+      </Flex>
       {RenderHandle}
       {RenderToolHandle}
 
-      <EditTitleModal maxLength={20} />
+      <ConfirmSyncModal />
+      <EditTitleModal maxLength={50} />
     </Flex>
   );
 };
@@ -361,7 +401,8 @@ const MenuRender = React.memo(function MenuRender({
   const { t } = useTranslation();
   const { openDebugNode, DebugInputModal } = useDebug();
 
-  const { setNodes, setEdges, onNodesChange } = useContextSelector(WorkflowContext, (v) => v);
+  const setNodes = useContextSelector(WorkflowNodeEdgeContext, (v) => v.setNodes);
+  const setEdges = useContextSelector(WorkflowNodeEdgeContext, (v) => v.setEdges);
   const { computedNewNodeName } = useWorkflowUtils();
 
   const onCopyNode = useCallback(
@@ -384,7 +425,12 @@ const MenuRender = React.memo(function MenuRender({
           pluginId: node.data.pluginId,
           version: node.data.version
         };
-        return state.concat(
+
+        return [
+          ...state.map((item) => ({
+            ...item,
+            selected: false
+          })),
           storeNode2FlowNode({
             item: {
               flowNodeType: template.flowNodeType,
@@ -403,7 +449,7 @@ const MenuRender = React.memo(function MenuRender({
             parentNodeId: undefined,
             t
           })
-        );
+        ];
       });
     },
     [computedNewNodeName, setNodes, t]
@@ -472,7 +518,7 @@ const MenuRender = React.memo(function MenuRender({
           className="nodrag controller-menu"
           display={'none'}
           flexDirection={'column'}
-          gap={3}
+          gap={2}
           position={'absolute'}
           top={'-20px'}
           right={0}
@@ -483,16 +529,18 @@ const MenuRender = React.memo(function MenuRender({
           pt={'20px'}
         >
           {menuList.map((item) => (
-            <Box key={item.icon}>
-              <Button
-                size={'xs'}
-                variant={item.variant}
-                leftIcon={<MyIcon name={item.icon as any} w={'13px'} />}
-                onClick={item.onClick}
-              >
-                {t(item.label as any)}
-              </Button>
-            </Box>
+            <Button
+              key={item.icon}
+              h={8}
+              fontSize={'sm'}
+              pl={2}
+              pr={6}
+              variant={item.variant}
+              leftIcon={<MyIcon name={item.icon as any} w={'16px'} mr={-1} />}
+              onClick={item.onClick}
+            >
+              {t(item.label as any)}
+            </Button>
           ))}
         </Box>
         <DebugInputModal />
@@ -539,14 +587,19 @@ const NodeIntro = React.memo(function NodeIntro({
   const Render = useMemo(() => {
     return (
       <>
-        <Flex alignItems={'flex-end'} py={1}>
-          <Box fontSize={'xs'} color={'myGray.600'} flex={'1 0 0'}>
-            {t(intro as any)}
+        <Flex alignItems={'center'}>
+          <Box fontSize={'sm'} color={'myGray.500'} flex={'1 0 0'}>
+            {t(intro as any) || t('app:node_not_intro')}
           </Box>
           {NodeIsTool && (
-            <Button
-              size={'xs'}
-              variant={'whiteBase'}
+            <Flex
+              p={'7px'}
+              rounded={'sm'}
+              alignItems={'center'}
+              _hover={{
+                bg: 'myGray.100'
+              }}
+              cursor={'pointer'}
               onClick={() => {
                 onOpenIntroModal({
                   defaultVal: intro,
@@ -561,8 +614,8 @@ const NodeIntro = React.memo(function NodeIntro({
                 });
               }}
             >
-              {t('common:core.module.Edit intro')}
-            </Button>
+              <MyIcon name={'edit'} w={'18px'} />
+            </Flex>
           )}
         </Flex>
         <EditIntroModal maxLength={500} />
@@ -582,10 +635,10 @@ const NodeDebugResponse = React.memo(function NodeDebugResponse({
 }) {
   const { t } = useTranslation();
 
-  const onChangeNode = useContextSelector(WorkflowContext, (v) => v.onChangeNode);
-  const onStopNodeDebug = useContextSelector(WorkflowContext, (v) => v.onStopNodeDebug);
-  const onNextNodeDebug = useContextSelector(WorkflowContext, (v) => v.onNextNodeDebug);
-  const workflowDebugData = useContextSelector(WorkflowContext, (v) => v.workflowDebugData);
+  const { onChangeNode, onStopNodeDebug, onNextNodeDebug, workflowDebugData } = useContextSelector(
+    WorkflowContext,
+    (v) => v
+  );
 
   const { openConfirm, ConfirmModal } = useConfirm({
     content: t('common:core.workflow.Confirm stop debug')
@@ -625,7 +678,7 @@ const NodeDebugResponse = React.memo(function NodeDebugResponse({
 
     return !!debugResult && !!statusData ? (
       <>
-        <Flex px={4} bg={statusData.bg} borderTopRadius={'md'} py={3}>
+        <Flex px={3} bg={statusData.bg} borderTopRadius={'md'} py={3}>
           <MyIcon name={statusData.icon as any} w={'16px'} mr={2} />
           <Box color={'myGray.900'} fontWeight={'bold'} flex={'1 0 0'}>
             {statusData.text}
@@ -666,7 +719,7 @@ const NodeDebugResponse = React.memo(function NodeDebugResponse({
             border={'base'}
           >
             {/* Status header */}
-            <Flex h={'54x'} px={4} py={3} alignItems={'center'}>
+            <Flex h={'54x'} px={3} py={3} alignItems={'center'}>
               <MyIcon mr={1} name={'core/workflow/debugResult'} w={'20px'} color={'primary.600'} />
               <Box fontWeight={'bold'} flex={'1'}>
                 {t('common:core.workflow.debug.Run result')}
@@ -712,16 +765,14 @@ const NodeDebugResponse = React.memo(function NodeDebugResponse({
                     {debugResult.message}
                   </Box>
                 )}
-                {response && <WholeResponseContent activeModule={response} showDetail />}
+                {response && <WholeResponseContent activeModule={response} />}
               </Box>
             )}
           </Card>
         )}
-        <ConfirmModal />
       </>
     ) : null;
   }, [
-    ConfirmModal,
     debugResult,
     nodeId,
     onChangeNode,
@@ -729,8 +780,13 @@ const NodeDebugResponse = React.memo(function NodeDebugResponse({
     onStopNodeDebug,
     openConfirm,
     t,
-    workflowDebugData?.nextRunNodes
+    workflowDebugData
   ]);
 
-  return <>{RenderStatus}</>;
+  return (
+    <>
+      {RenderStatus}
+      <ConfirmModal />
+    </>
+  );
 });

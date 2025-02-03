@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   Box,
   Flex,
@@ -22,13 +22,13 @@ import AppCard from '../WorkflowComponents/AppCard';
 import { useSystem } from '@fastgpt/web/hooks/useSystem';
 import { useRequest2 } from '@fastgpt/web/hooks/useRequest';
 import MyModal from '@fastgpt/web/components/common/MyModal';
-import { compareSnapshot } from '@/web/core/workflow/utils';
 import { formatTime2YMDHMS } from '@fastgpt/global/common/string/time';
 import { useToast } from '@fastgpt/web/hooks/useToast';
-import { useDebounceEffect } from 'ahooks';
 import { useSystemStore } from '@/web/common/system/useSystemStore';
 import SaveButton from '../Workflow/components/SaveButton';
 import PublishHistories from '../PublishHistoriesSlider';
+import { WorkflowEventContext } from '../WorkflowComponents/context/workflowEventContext';
+import { WorkflowStatusContext } from '../WorkflowComponents/context/workflowStatusContext';
 
 const Header = () => {
   const { t } = useTranslation();
@@ -44,48 +44,27 @@ const Header = () => {
     onClose: onCloseBackConfirm
   } = useDisclosure();
 
-  const {
-    flowData2StoreData,
-    flowData2StoreDataAndCheck,
-    setWorkflowTestData,
-    setShowHistoryModal,
-    showHistoryModal,
-    nodes,
-    edges,
-    past,
-    future,
-    setPast,
-    onSwitchTmpVersion,
-    onSwitchCloudVersion
-  } = useContextSelector(WorkflowContext, (v) => v);
-  const { lastAppListRouteType } = useSystemStore();
-
-  const [isPublished, setIsPublished] = useState(false);
-  useDebounceEffect(
-    () => {
-      const savedSnapshot =
-        future.findLast((snapshot) => snapshot.isSaved) ||
-        past.find((snapshot) => snapshot.isSaved);
-
-      const val = compareSnapshot(
-        {
-          nodes: savedSnapshot?.nodes,
-          edges: savedSnapshot?.edges,
-          chatConfig: savedSnapshot?.chatConfig
-        },
-        {
-          nodes: nodes,
-          edges: edges,
-          chatConfig: appDetail.chatConfig
-        }
-      );
-      setIsPublished(val);
-    },
-    [future, past, nodes, edges, appDetail.chatConfig],
-    {
-      wait: 500
-    }
+  const flowData2StoreData = useContextSelector(WorkflowContext, (v) => v.flowData2StoreData);
+  const flowData2StoreDataAndCheck = useContextSelector(
+    WorkflowContext,
+    (v) => v.flowData2StoreDataAndCheck
   );
+  const setWorkflowTestData = useContextSelector(WorkflowContext, (v) => v.setWorkflowTestData);
+  const past = useContextSelector(WorkflowContext, (v) => v.past);
+  const setPast = useContextSelector(WorkflowContext, (v) => v.setPast);
+  const onSwitchTmpVersion = useContextSelector(WorkflowContext, (v) => v.onSwitchTmpVersion);
+  const onSwitchCloudVersion = useContextSelector(WorkflowContext, (v) => v.onSwitchCloudVersion);
+
+  const showHistoryModal = useContextSelector(WorkflowEventContext, (v) => v.showHistoryModal);
+  const setShowHistoryModal = useContextSelector(
+    WorkflowEventContext,
+    (v) => v.setShowHistoryModal
+  );
+
+  const isSaved = useContextSelector(WorkflowStatusContext, (v) => v.isSaved);
+  const leaveSaveSign = useContextSelector(WorkflowStatusContext, (v) => v.leaveSaveSign);
+
+  const { lastAppListRouteType } = useSystemStore();
 
   const { runAsync: onClickSave, loading } = useRequest2(
     async ({
@@ -122,18 +101,15 @@ const Header = () => {
   );
 
   const onBack = useCallback(async () => {
-    try {
-      localStorage.removeItem(`${appDetail._id}-past`);
-      localStorage.removeItem(`${appDetail._id}-future`);
-      router.push({
-        pathname: '/app/list',
-        query: {
-          parentId: appDetail.parentId,
-          type: lastAppListRouteType
-        }
-      });
-    } catch (error) {}
-  }, [appDetail._id, appDetail.parentId, lastAppListRouteType, router]);
+    leaveSaveSign.current = false;
+    router.push({
+      pathname: '/app/list',
+      query: {
+        parentId: appDetail.parentId,
+        type: lastAppListRouteType
+      }
+    });
+  }, [appDetail.parentId, lastAppListRouteType, leaveSaveSign, router]);
 
   const Render = useMemo(() => {
     return (
@@ -145,7 +121,6 @@ const Header = () => {
         )}
         <Flex
           mt={[2, 0]}
-          py={3}
           pl={[2, 4]}
           pr={[2, 6]}
           borderBottom={'base'}
@@ -163,16 +138,24 @@ const Header = () => {
               })}
         >
           {/* back */}
-          <MyIcon
-            name={'common/leftArrowLight'}
-            w={'1.75rem'}
-            cursor={'pointer'}
-            onClick={isPublished ? onBack : onOpenBackConfirm}
-          />
+          <Box
+            _hover={{
+              bg: 'myGray.200'
+            }}
+            p={0.5}
+            borderRadius={'sm'}
+          >
+            <MyIcon
+              name={'common/leftArrowLight'}
+              w={6}
+              cursor={'pointer'}
+              onClick={isSaved ? onBack : onOpenBackConfirm}
+            />
+          </Box>
 
           {/* app info */}
           <Box ml={1}>
-            <AppCard isPublished={isPublished} showSaveStatus={isV2Workflow} />
+            <AppCard isSaved={isSaved} showSaveStatus={isV2Workflow} />
           </Box>
 
           {isPc && (
@@ -224,7 +207,7 @@ const Header = () => {
   }, [
     isPc,
     currentTab,
-    isPublished,
+    isSaved,
     onBack,
     onOpenBackConfirm,
     isV2Workflow,
@@ -267,14 +250,16 @@ const Header = () => {
           <Button
             isLoading={loading}
             onClick={async () => {
-              await onClickSave({});
-              onCloseBackConfirm();
-              onBack();
-              toast({
-                status: 'success',
-                title: t('app:saved_success'),
-                position: 'top-right'
-              });
+              try {
+                await onClickSave({});
+                onCloseBackConfirm();
+                onBack();
+                toast({
+                  status: 'success',
+                  title: t('app:saved_success'),
+                  position: 'top-right'
+                });
+              } catch (error) {}
             }}
           >
             {t('common:common.Save_and_exit')}

@@ -1,8 +1,11 @@
 import { chats2GPTMessages } from '@fastgpt/global/core/chat/adapt';
-import { countMessagesTokens } from '../../../../common/string/tiktoken/index';
+import {
+  countGptMessagesTokens,
+  countPromptTokens
+} from '../../../../common/string/tiktoken/index';
 import type { ChatItemType } from '@fastgpt/global/core/chat/type.d';
 import { ChatItemValueTypeEnum, ChatRoleEnum } from '@fastgpt/global/core/chat/constants';
-import { getAIApi } from '../../../ai/config';
+import { createChatCompletion } from '../../../ai/config';
 import type { ClassifyQuestionAgentItemType } from '@fastgpt/global/core/workflow/template/system/classifyQuestion/type';
 import { NodeInputKeyEnum, NodeOutputKeyEnum } from '@fastgpt/global/core/workflow/constants';
 import { DispatchNodeResponseKeyEnum } from '@fastgpt/global/core/workflow/runtime/constants';
@@ -18,6 +21,7 @@ import { chatValue2RuntimePrompt } from '@fastgpt/global/core/chat/adapt';
 import { getHandleId } from '@fastgpt/global/core/workflow/utils';
 import { loadRequestMessages } from '../../../chat/utils';
 import { llmCompletionsBodyFormat } from '../../../ai/utils';
+import { addLog } from '../../../../common/system/log';
 
 type Props = ModuleDispatchProps<{
   [NodeInputKeyEnum.aiModel]: string;
@@ -34,7 +38,7 @@ type ActionProps = Props & { cqModel: LLMModelItemType };
 /* request openai chat */
 export const dispatchClassifyQuestion = async (props: Props): Promise<CQResponse> => {
   const {
-    user,
+    externalProvider,
     node: { nodeId, name },
     histories,
     params: { model, history = 6, agents, userChatInput }
@@ -48,7 +52,7 @@ export const dispatchClassifyQuestion = async (props: Props): Promise<CQResponse
 
   const chatHistories = getHistories(history, histories);
 
-  const { arg, tokens } = await completions({
+  const { arg, inputTokens, outputTokens } = await completions({
     ...props,
     histories: chatHistories,
     cqModel
@@ -58,20 +62,22 @@ export const dispatchClassifyQuestion = async (props: Props): Promise<CQResponse
 
   const { totalPoints, modelName } = formatModelChars2Points({
     model: cqModel.model,
-    tokens,
+    inputTokens: inputTokens,
+    outputTokens: outputTokens,
     modelType: ModelTypeEnum.llm
   });
 
   return {
     [NodeOutputKeyEnum.cqResult]: result.value,
     [DispatchNodeResponseKeyEnum.skipHandleId]: agents
-      .filter((item) => item.key !== arg?.type)
+      .filter((item) => item.key !== result.key)
       .map((item) => getHandleId(nodeId, 'source', item.key)),
     [DispatchNodeResponseKeyEnum.nodeResponse]: {
-      totalPoints: user.openaiAccount?.key ? 0 : totalPoints,
+      totalPoints: externalProvider.openaiAccount?.key ? 0 : totalPoints,
       model: modelName,
       query: userChatInput,
-      tokens,
+      inputTokens: inputTokens,
+      outputTokens: outputTokens,
       cqList: agents,
       cqResult: result.value,
       contextTotalLen: chatHistories.length + 2
@@ -79,9 +85,10 @@ export const dispatchClassifyQuestion = async (props: Props): Promise<CQResponse
     [DispatchNodeResponseKeyEnum.nodeDispatchUsages]: [
       {
         moduleName: name,
-        totalPoints: user.openaiAccount?.key ? 0 : totalPoints,
+        totalPoints: externalProvider.openaiAccount?.key ? 0 : totalPoints,
         model: modelName,
-        tokens
+        inputTokens: inputTokens,
+        outputTokens: outputTokens
       }
     ]
   };
@@ -89,7 +96,7 @@ export const dispatchClassifyQuestion = async (props: Props): Promise<CQResponse
 
 const completions = async ({
   cqModel,
-  user,
+  externalProvider,
   histories,
   params: { agents, systemPrompt = '', userChatInput }
 }: ActionProps) => {
@@ -120,13 +127,8 @@ const completions = async ({
     useVision: false
   });
 
-  const ai = getAIApi({
-    userKey: user.openaiAccount,
-    timeout: 480000
-  });
-
-  const data = await ai.chat.completions.create(
-    llmCompletionsBodyFormat(
+  const { response: data } = await createChatCompletion({
+    body: llmCompletionsBodyFormat(
       {
         model: cqModel.model,
         temperature: 0.01,
@@ -134,8 +136,9 @@ const completions = async ({
         stream: false
       },
       cqModel
-    )
-  );
+    ),
+    userKey: externalProvider.openaiAccount
+  });
   const answer = data.choices?.[0].message?.content || '';
 
   // console.log(JSON.stringify(chats2GPTMessages({ messages, reserveId: false }), null, 2));
@@ -146,8 +149,13 @@ const completions = async ({
     agents.find((item) => answer.includes(item.value))?.key ||
     '';
 
+  if (!id) {
+    addLog.warn('Classify error', { answer });
+  }
+
   return {
-    tokens: await countMessagesTokens(messages),
+    inputTokens: await countGptMessagesTokens(requestMessages),
+    outputTokens: await countPromptTokens(answer),
     arg: { type: id }
   };
 };

@@ -8,7 +8,7 @@ import MyIcon from '@fastgpt/web/components/common/Icon';
 import { useRequest2 } from '@fastgpt/web/hooks/useRequest';
 import { ChatBoxInputFormType, ChatBoxInputType, SendPromptFnType } from '../type';
 import { textareaMinH } from '../constants';
-import { UseFormReturn } from 'react-hook-form';
+import { useFieldArray, UseFormReturn } from 'react-hook-form';
 import { ChatBoxContext } from '../Provider';
 import dynamic from 'next/dynamic';
 import { useContextSelector } from 'use-context-selector';
@@ -17,6 +17,7 @@ import { documentFileType } from '@fastgpt/global/common/file/constants';
 import FilePreview from '../../components/FilePreview';
 import { useFileUpload } from '../hooks/useFileUpload';
 import ComplianceTip from '@/components/common/ComplianceTip/index';
+import { useToast } from '@fastgpt/web/hooks/useToast';
 
 const InputGuideBox = dynamic(() => import('./InputGuideBox'));
 
@@ -32,32 +33,34 @@ const ChatInput = ({
   onStop,
   TextareaDom,
   resetInputVal,
-  chatForm,
-  appId
+  chatForm
 }: {
   onSendMessage: SendPromptFnType;
   onStop: () => void;
   TextareaDom: React.MutableRefObject<HTMLTextAreaElement | null>;
   resetInputVal: (val: ChatBoxInputType) => void;
   chatForm: UseFormReturn<ChatBoxInputFormType>;
-  appId: string;
 }) => {
-  const { isPc } = useSystem();
   const { t } = useTranslation();
+  const { toast } = useToast();
+  const { isPc } = useSystem();
 
   const { setValue, watch, control } = chatForm;
   const inputValue = watch('input');
 
-  const {
-    chatId,
-    isChatting,
-    whisperConfig,
-    autoTTSResponse,
-    chatInputGuide,
-    outLinkAuthData,
-    fileSelectConfig
-  } = useContextSelector(ChatBoxContext, (v) => v);
+  const outLinkAuthData = useContextSelector(ChatBoxContext, (v) => v.outLinkAuthData);
+  const appId = useContextSelector(ChatBoxContext, (v) => v.appId);
+  const chatId = useContextSelector(ChatBoxContext, (v) => v.chatId);
+  const isChatting = useContextSelector(ChatBoxContext, (v) => v.isChatting);
+  const whisperConfig = useContextSelector(ChatBoxContext, (v) => v.whisperConfig);
+  const autoTTSResponse = useContextSelector(ChatBoxContext, (v) => v.autoTTSResponse);
+  const chatInputGuide = useContextSelector(ChatBoxContext, (v) => v.chatInputGuide);
+  const fileSelectConfig = useContextSelector(ChatBoxContext, (v) => v.fileSelectConfig);
 
+  const fileCtrl = useFieldArray({
+    control,
+    name: 'files'
+  });
   const {
     File,
     onOpenSelectFile,
@@ -69,28 +72,24 @@ const ChatInput = ({
     showSelectFile,
     showSelectImg,
     removeFiles,
-    replaceFiles
+    replaceFiles,
+    hasFileUploading
   } = useFileUpload({
-    outLinkAuthData,
-    chatId: chatId || '',
     fileSelectConfig,
-    control
+    fileCtrl,
+    outLinkAuthData,
+    appId,
+    chatId
   });
   const havInput = !!inputValue || fileList.length > 0;
-  const hasFileUploading = fileList.some((item) => !item.url);
   const canSendMessage = havInput && !hasFileUploading;
 
   // Upload files
-  useRequest2(
-    async () => {
-      uploadFiles();
-    },
-    {
-      manual: false,
-      errorToast: t('common:upload_file_error'),
-      refreshDeps: [fileList, outLinkAuthData, chatId]
-    }
-  );
+  useRequest2(uploadFiles, {
+    manual: false,
+    errorToast: t('common:upload_file_error'),
+    refreshDeps: [fileList, outLinkAuthData, chatId]
+  });
 
   /* on send */
   const handleSend = useCallback(
@@ -119,6 +118,35 @@ const ChatInput = ({
     renderAudioGraph,
     stream
   } = useSpeech({ appId, ...outLinkAuthData });
+  const onWhisperRecord = useCallback(() => {
+    const finishWhisperTranscription = (text: string) => {
+      if (!text) return;
+      if (whisperConfig?.autoSend) {
+        onSendMessage({
+          text,
+          files: fileList,
+          autoTTSResponse
+        });
+        replaceFiles([]);
+      } else {
+        resetInputVal({ text });
+      }
+    };
+    if (isSpeaking) {
+      return stopSpeak();
+    }
+    startSpeak(finishWhisperTranscription);
+  }, [
+    autoTTSResponse,
+    fileList,
+    isSpeaking,
+    onSendMessage,
+    replaceFiles,
+    resetInputVal,
+    startSpeak,
+    stopSpeak,
+    whisperConfig?.autoSend
+  ]);
   useEffect(() => {
     if (!stream) {
       return;
@@ -136,28 +164,6 @@ const ChatInput = ({
     };
     renderCurve();
   }, [renderAudioGraph, stream]);
-  const finishWhisperTranscription = useCallback(
-    (text: string) => {
-      if (!text) return;
-      if (whisperConfig?.autoSend) {
-        onSendMessage({
-          text,
-          files: fileList,
-          autoTTSResponse
-        });
-        replaceFiles([]);
-      } else {
-        resetInputVal({ text });
-      }
-    },
-    [autoTTSResponse, fileList, onSendMessage, replaceFiles, resetInputVal, whisperConfig?.autoSend]
-  );
-  const onWhisperRecord = useCallback(() => {
-    if (isSpeaking) {
-      return stopSpeak();
-    }
-    startSpeak(finishWhisperTranscription);
-  }, [finishWhisperTranscription, isSpeaking, startSpeak, stopSpeak]);
 
   const RenderTranslateLoading = useMemo(
     () => (
@@ -200,7 +206,7 @@ const ChatInput = ({
             <MyTooltip label={selectFileLabel}>
               <MyIcon name={selectFileIcon as any} w={'18px'} color={'myGray.600'} />
             </MyTooltip>
-            <File onSelect={(files) => onSelectFile({ files, fileList })} />
+            <File onSelect={(files) => onSelectFile({ files })} />
           </Flex>
         )}
 
@@ -276,9 +282,10 @@ const ChatInput = ({
                 .filter((file) => {
                   return file && fileTypeFilter(file);
                 }) as File[];
-              onSelectFile({ files, fileList });
+              onSelectFile({ files });
 
               if (files.length > 0) {
+                e.preventDefault();
                 e.stopPropagation();
               }
             }
@@ -286,7 +293,7 @@ const ChatInput = ({
         />
         <Flex alignItems={'center'} position={'absolute'} right={[2, 4]} bottom={['10px', '12px']}>
           {/* voice-input */}
-          {whisperConfig.open && !havInput && !isChatting && !!whisperModel && (
+          {whisperConfig.open && !inputValue && !isChatting && !!whisperModel && (
             <>
               <canvas
                 ref={canvasRef}
@@ -429,7 +436,36 @@ const ChatInput = ({
   );
 
   return (
-    <Box m={['0 auto', '10px auto']} w={'100%'} maxW={['auto', 'min(800px, 100%)']} px={[0, 5]}>
+    <Box
+      m={['0 auto', '10px auto']}
+      w={'100%'}
+      maxW={['auto', 'min(800px, 100%)']}
+      px={[0, 5]}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+
+        if (!(showSelectFile || showSelectImg)) return;
+        const files = Array.from(e.dataTransfer.files);
+
+        const droppedFiles = files.filter((file) => fileTypeFilter(file));
+        if (droppedFiles.length > 0) {
+          onSelectFile({ files: droppedFiles });
+        }
+
+        const invalidFileName = files
+          .filter((file) => !fileTypeFilter(file))
+          .map((file) => file.name)
+          .join(', ');
+        if (invalidFileName) {
+          toast({
+            status: 'warning',
+            title: t('chat:unsupported_file_type'),
+            description: invalidFileName
+          });
+        }
+      }}
+    >
       <Box
         pt={fileList.length > 0 ? '0' : ['14px', '18px']}
         pb={['14px', '18px']}
@@ -466,7 +502,7 @@ const ChatInput = ({
         {RenderTranslateLoading}
 
         {/* file preview */}
-        <Box px={[2, 4]}>
+        <Box px={[1, 3]}>
           <FilePreview fileList={fileList} removeFiles={removeFiles} />
         </Box>
 

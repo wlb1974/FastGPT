@@ -12,10 +12,12 @@ export const computedMaxToken = async ({
   model,
   filterMessages = []
 }: {
-  maxToken: number;
+  maxToken?: number;
   model: LLMModelItemType;
   filterMessages: ChatCompletionMessageParam[];
 }) => {
+  if (maxToken === undefined) return;
+
   maxToken = Math.min(maxToken, model.maxResponse);
   const tokensLimit = model.maxContext;
 
@@ -37,8 +39,6 @@ export const computedTemperature = ({
   model: LLMModelItemType;
   temperature: number;
 }) => {
-  if (temperature < 1) return temperature;
-
   temperature = +(model.maxTemperature * (temperature / 10)).toFixed(2);
   temperature = Math.max(temperature, 0.01);
 
@@ -48,24 +48,28 @@ export const computedTemperature = ({
 type CompletionsBodyType =
   | ChatCompletionCreateParamsNonStreaming
   | ChatCompletionCreateParamsStreaming;
+type InferCompletionsBody<T> = T extends { stream: true }
+  ? ChatCompletionCreateParamsStreaming
+  : ChatCompletionCreateParamsNonStreaming;
 
 export const llmCompletionsBodyFormat = <T extends CompletionsBodyType>(
   body: T,
   model: string | LLMModelItemType
-) => {
+): InferCompletionsBody<T> => {
   const modelData = typeof model === 'string' ? getLLMModel(model) : model;
   if (!modelData) {
-    return body;
+    return body as InferCompletionsBody<T>;
   }
 
   const requestBody: T = {
     ...body,
-    temperature: body.temperature
-      ? computedTemperature({
-          model: modelData,
-          temperature: body.temperature
-        })
-      : undefined,
+    temperature:
+      typeof body.temperature === 'number'
+        ? computedTemperature({
+            model: modelData,
+            temperature: body.temperature
+          })
+        : undefined,
     ...modelData?.defaultConfig
   };
 
@@ -81,5 +85,5 @@ export const llmCompletionsBodyFormat = <T extends CompletionsBodyType>(
 
   // console.log(requestBody);
 
-  return requestBody;
+  return requestBody as InferCompletionsBody<T>;
 };

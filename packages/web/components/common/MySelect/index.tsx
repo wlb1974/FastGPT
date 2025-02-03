@@ -18,10 +18,18 @@ import {
   Flex
 } from '@chakra-ui/react';
 import type { ButtonProps, MenuItemProps } from '@chakra-ui/react';
-import { ChevronDownIcon } from '@chakra-ui/icons';
 import MyIcon from '../Icon';
 import { useRequest2 } from '../../../hooks/useRequest';
+import MyDivider from '../MyDivider';
+import { useScrollPagination } from '../../../hooks/useScrollPagination';
 
+/** 选择组件 Props 类型
+ * value: 选中的值
+ * placeholder: 占位符
+ * list: 列表数据
+ * isLoading: 是否加载中
+ * ScrollData: 分页滚动数据控制器 [useScrollPagination] 的返回值
+ * */
 export type SelectProps<T = any> = ButtonProps & {
   value?: T;
   placeholder?: string;
@@ -30,9 +38,11 @@ export type SelectProps<T = any> = ButtonProps & {
     label: string | React.ReactNode;
     description?: string;
     value: T;
+    showBorder?: boolean;
   }[];
   isLoading?: boolean;
   onchange?: (val: T) => any | Promise<any>;
+  ScrollData?: ReturnType<typeof useScrollPagination>['ScrollData'];
 };
 
 const MySelect = <T = any,>(
@@ -43,6 +53,7 @@ const MySelect = <T = any,>(
     list = [],
     onchange,
     isLoading = false,
+    ScrollData,
     ...props
   }: SelectProps<T>,
   ref: ForwardedRef<{
@@ -59,10 +70,10 @@ const MySelect = <T = any,>(
     display: 'flex',
     alignItems: 'center',
     _hover: {
-      backgroundColor: 'myWhite.600'
+      backgroundColor: 'myGray.100'
     },
     _notLast: {
-      mb: 2
+      mb: 1
     }
   };
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -86,6 +97,46 @@ const MySelect = <T = any,>(
 
   const isSelecting = loading || isLoading;
 
+  const ListRender = useMemo(() => {
+    return (
+      <>
+        {list.map((item, i) => (
+          <Box key={i}>
+            <MenuItem
+              {...menuItemStyles}
+              {...(value === item.value
+                ? {
+                    ref: SelectedItemRef,
+                    color: 'primary.700',
+                    bg: 'myGray.100',
+                    fontWeight: '600'
+                  }
+                : {
+                    color: 'myGray.900'
+                  })}
+              onClick={() => {
+                if (onChange && value !== item.value) {
+                  onChange(item.value);
+                }
+              }}
+              whiteSpace={'pre-wrap'}
+              fontSize={'sm'}
+              display={'block'}
+            >
+              <Box>{item.label}</Box>
+              {item.description && (
+                <Box color={'myGray.500'} fontSize={'xs'}>
+                  {item.description}
+                </Box>
+              )}
+            </MenuItem>
+            {item.showBorder && <MyDivider my={2} />}
+          </Box>
+        ))}
+      </>
+    );
+  }, [list, value]);
+
   return (
     <Box
       css={css({
@@ -107,16 +158,19 @@ const MySelect = <T = any,>(
           ref={ButtonRef}
           width={width}
           px={3}
-          rightIcon={<ChevronDownIcon />}
-          variant={'whitePrimary'}
+          rightIcon={<MyIcon name={'core/chat/chevronDown'} w={4} color={'myGray.500'} />}
+          variant={'whitePrimaryOutline'}
+          size={'md'}
+          fontSize={'sm'}
           textAlign={'left'}
           _active={{
             transform: 'none'
           }}
           {...(isOpen
             ? {
-                boxShadow: '0px 0px 4px #A8DBFF',
-                borderColor: 'primary.500'
+                boxShadow: '0px 0px 0px 2.4px rgba(51, 112, 255, 0.15)',
+                borderColor: 'primary.600',
+                color: 'primary.700'
               }
             : {})}
           {...props}
@@ -150,36 +204,7 @@ const MySelect = <T = any,>(
           maxH={'40vh'}
           overflowY={'auto'}
         >
-          {list.map((item, i) => (
-            <MenuItem
-              key={i}
-              {...menuItemStyles}
-              {...(value === item.value
-                ? {
-                    ref: SelectedItemRef,
-                    color: 'primary.600',
-                    bg: 'myGray.100'
-                  }
-                : {
-                    color: 'myGray.900'
-                  })}
-              onClick={() => {
-                if (onChange && value !== item.value) {
-                  onChange(item.value);
-                }
-              }}
-              whiteSpace={'pre-wrap'}
-              fontSize={'sm'}
-              display={'block'}
-            >
-              <Box>{item.label}</Box>
-              {item.description && (
-                <Box color={'myGray.500'} fontSize={'xs'}>
-                  {item.description}
-                </Box>
-              )}
-            </MenuItem>
-          ))}
+          {ScrollData ? <ScrollData>{ListRender}</ScrollData> : ListRender}
         </MenuList>
       </Menu>
     </Box>

@@ -5,18 +5,19 @@ import { NextAPI } from '@/service/middleware/entry';
 import { ReadPermissionVal } from '@fastgpt/global/support/permission/constant';
 import { ApiRequestProps } from '@fastgpt/service/type/next';
 import { DatasetDataListItemType } from '@/global/core/dataset/type';
-import { PaginationProps, PaginationResponse } from '@fastgpt/web/common/fetch/type';
+import { parsePaginationRequest } from '@fastgpt/service/common/api/pagination';
+import { PaginationResponse } from '@fastgpt/web/common/fetch/type';
 
-export type GetDatasetDataListProps = PaginationProps & {
+export type GetDatasetDataListProps = {
   searchText?: string;
   collectionId: string;
 };
-export type GetDatasetDataListRes = PaginationResponse<DatasetDataListItemType>;
 
 async function handler(
   req: ApiRequestProps<GetDatasetDataListProps>
-): Promise<GetDatasetDataListRes> {
-  let { offset, pageSize = 10, searchText = '', collectionId } = req.body;
+): Promise<PaginationResponse<DatasetDataListItemType>> {
+  let { searchText = '', collectionId } = req.body;
+  let { offset, pageSize } = parsePaginationRequest(req);
 
   pageSize = Math.min(pageSize, 30);
 
@@ -32,7 +33,7 @@ async function handler(
   const queryReg = new RegExp(`${replaceRegChars(searchText)}`, 'i');
   const match = {
     teamId,
-    datasetId: collection.datasetId._id,
+    datasetId: collection.datasetId,
     collectionId,
     ...(searchText.trim()
       ? {

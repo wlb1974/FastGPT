@@ -16,11 +16,8 @@ import { AppFolderTypeList, AppTypeEnum } from '@fastgpt/global/core/app/constan
 import { useFolderDrag } from '@/components/common/folder/useFolderDrag';
 import dynamic from 'next/dynamic';
 import type { EditResourceInfoFormType } from '@/components/common/Modal/EditResourceModal';
-import MyMenu from '@fastgpt/web/components/common/MyMenu';
-import {
-  AppDefaultPermissionVal,
-  AppPermissionList
-} from '@fastgpt/global/support/permission/app/constant';
+import MyMenu, { MenuItemType } from '@fastgpt/web/components/common/MyMenu';
+import { AppPermissionList } from '@fastgpt/global/support/permission/app/constant';
 import {
   deleteAppCollaborators,
   getCollaboratorList,
@@ -36,8 +33,9 @@ import type { EditHttpPluginProps } from './HttpPluginEditModal';
 import { postCopyApp } from '@/web/core/app/api/app';
 import { formatTimeToChatTime } from '@fastgpt/global/common/string/time';
 import { useSystem } from '@fastgpt/web/hooks/useSystem';
-import { useChatStore } from '@/web/core/chat/context/storeChat';
-import { useUserStore } from '@/web/support/user/useUserStore';
+import { useChatStore } from '@/web/core/chat/context/useChatStore';
+import { RequireOnlyOne } from '@fastgpt/global/common/type/utils';
+import UserBox from '@fastgpt/web/components/common/UserBox';
 const HttpEditModal = dynamic(() => import('./HttpPluginEditModal'));
 
 const ListItem = () => {
@@ -46,14 +44,16 @@ const ListItem = () => {
   const { parentId = null } = router.query;
   const { isPc } = useSystem();
 
-  const { loadAndGetTeamMembers } = useUserStore();
-  const { lastChatAppId, setLastChatAppId } = useChatStore();
+  const { openConfirm: openMoveConfirm, ConfirmModal: MoveConfirmModal } = useConfirm({
+    type: 'common',
+    title: t('common:move.confirm'),
+    content: t('app:move.hint')
+  });
 
   const { myApps, loadMyApps, onUpdateApp, setMoveAppId, folderDetail } = useContextSelector(
     AppListContext,
     (v) => v
   );
-  const [loadingAppId, setLoadingAppId] = useState<string>();
 
   const [editedApp, setEditedApp] = useState<EditResourceInfoFormType>();
   const [editHttpPlugin, setEditHttpPlugin] = useState<EditHttpPluginProps>();
@@ -64,23 +64,28 @@ const ListItem = () => {
     [editPerAppIndex, myApps]
   );
 
+  const parentApp = useMemo(() => myApps.find((item) => item._id === parentId), [parentId, myApps]);
+
+  const { runAsync: onPutAppById } = useRequest2(putAppById, {
+    onSuccess() {
+      loadMyApps();
+    }
+  });
+
   const { getBoxProps } = useFolderDrag({
     activeStyles: {
       borderColor: 'primary.600'
     },
-    onDrop: async (dragId: string, targetId: string) => {
-      setLoadingAppId(dragId);
-      try {
-        await putAppById(dragId, { parentId: targetId });
-        loadMyApps();
-      } catch (error) {}
-      setLoadingAppId(undefined);
+    onDrop: (dragId: string, targetId: string) => {
+      openMoveConfirm(async () => onPutAppById(dragId, { parentId: targetId }))();
     }
   });
 
   const { openConfirm: openConfirmDel, ConfirmModal: DelConfirmModal } = useConfirm({
     type: 'delete'
   });
+
+  const { lastChatAppId, setLastChatAppId } = useChatStore();
   const { runAsync: onclickDelApp } = useRequest2(
     (id: string) => {
       if (id === lastChatAppId) {
@@ -106,10 +111,6 @@ const ListItem = () => {
       loadMyApps();
     },
     successToast: t('app:create_copy_success')
-  });
-
-  const { data: members = [] } = useRequest2(loadAndGetTeamMembers, {
-    manual: false
   });
 
   const { runAsync: onResumeInheritPermission } = useRequest2(
@@ -138,7 +139,6 @@ const ListItem = () => {
         alignItems={'stretch'}
       >
         {myApps.map((app, index) => {
-          const owner = members.find((v) => v.tmbId === app.tmbId);
           return (
             <MyTooltip
               key={app._id}
@@ -152,7 +152,6 @@ const ListItem = () => {
               }
             >
               <MyBox
-                isLoading={loadingAppId === app._id}
                 lineHeight={1.5}
                 h="100%"
                 pt={5}
@@ -223,17 +222,14 @@ const ListItem = () => {
                   color={'myGray.500'}
                 >
                   <HStack spacing={3.5}>
-                    {owner && (
-                      <HStack spacing={1}>
-                        <Avatar src={owner.avatar} w={'0.875rem'} borderRadius={'50%'} />
-                        <Box maxW={'150px'} className="textEllipsis">
-                          {owner.memberName}
-                        </Box>
-                      </HStack>
-                    )}
-
+                    <UserBox
+                      sourceMember={app.sourceMember}
+                      fontSize="xs"
+                      avatarSize="1rem"
+                      spacing={0.5}
+                    />
                     <PermissionIconText
-                      defaultPermission={app.defaultPermission}
+                      private={app.private}
                       color={'myGray.500'}
                       iconColor={'myGray.400'}
                       w={'0.875rem'}
@@ -244,12 +240,17 @@ const ListItem = () => {
                     {isPc && (
                       <HStack spacing={0.5} className="time">
                         <MyIcon name={'history'} w={'0.85rem'} color={'myGray.400'} />
-                        <Box color={'myGray.500'}>{formatTimeToChatTime(app.updateTime)}</Box>
+                        <Box color={'myGray.500'}>
+                          {t(formatTimeToChatTime(app.updateTime) as any).replace('#', ':')}
+                        </Box>
                       </HStack>
                     )}
-                    {app.permission.hasWritePer && (
+                    {(AppFolderTypeList.includes(app.type)
+                      ? app.permission.hasManagePer
+                      : app.permission.hasWritePer) && (
                       <Box className="more" display={['', 'none']}>
                         <MyMenu
+                          size={'xs'}
                           Button={
                             <IconButton
                               size={'xsSquare'}
@@ -265,6 +266,7 @@ const ListItem = () => {
                                     children: [
                                       {
                                         icon: 'core/chat/chatLight',
+                                        type: 'grayBg' as MenuItemType,
                                         label: t('app:go_to_chat'),
                                         onClick: () => {
                                           router.push(`/chat?appId=${app._id}`);
@@ -280,6 +282,7 @@ const ListItem = () => {
                                     children: [
                                       {
                                         icon: 'core/chat/chatLight',
+                                        type: 'grayBg' as MenuItemType,
                                         label: t('app:go_to_run'),
                                         onClick: () => {
                                           router.push(`/chat?appId=${app._id}`);
@@ -295,6 +298,7 @@ const ListItem = () => {
                                     children: [
                                       {
                                         icon: 'edit',
+                                        type: 'grayBg' as MenuItemType,
                                         label: t('common:dataset.Edit Info'),
                                         onClick: () => {
                                           if (app.type === AppTypeEnum.httpPlugin) {
@@ -315,11 +319,14 @@ const ListItem = () => {
                                           }
                                         }
                                       },
-                                      ...(folderDetail?.type === AppTypeEnum.httpPlugin
+                                      ...(folderDetail?.type === AppTypeEnum.httpPlugin &&
+                                      !(parentApp ? parentApp.permission : app.permission)
+                                        .hasManagePer
                                         ? []
                                         : [
                                             {
                                               icon: 'common/file/move',
+                                              type: 'grayBg' as MenuItemType,
                                               label: t('common:common.folder.Move to'),
                                               onClick: () => setMoveAppId(app._id)
                                             }
@@ -327,7 +334,8 @@ const ListItem = () => {
                                       ...(app.permission.hasManagePer
                                         ? [
                                             {
-                                              icon: 'support/team/key',
+                                              icon: 'key',
+                                              type: 'grayBg' as MenuItemType,
                                               label: t('common:permission.Permission'),
                                               onClick: () => setEditPerAppIndex(index)
                                             }
@@ -344,6 +352,7 @@ const ListItem = () => {
                                     children: [
                                       {
                                         icon: 'copy',
+                                        type: 'grayBg' as MenuItemType,
                                         label: t('app:copy_one_app'),
                                         onClick: () =>
                                           openConfirmCopy(() => onclickCopy({ appId: app._id }))()
@@ -365,7 +374,7 @@ const ListItem = () => {
                                             undefined,
                                             app.type === AppTypeEnum.folder
                                               ? t('app:confirm_delete_folder_tip')
-                                              : t('app:confirm_del_app_tip')
+                                              : t('app:confirm_del_app_tip', { name: app.name })
                                           )()
                                       }
                                     ]
@@ -383,9 +392,7 @@ const ListItem = () => {
           );
         })}
       </Grid>
-
       {myApps.length === 0 && <EmptyTip text={t('common:core.app.no_app')} pt={'30vh'} />}
-
       <DelConfirmModal />
       <ConfirmCopyModal />
       {!!editedApp && (
@@ -400,46 +407,43 @@ const ListItem = () => {
       )}
       {!!editPerApp && (
         <ConfigPerModal
-          onChangeOwner={(tmbId: string) =>
-            changeOwner({
-              appId: editPerApp._id,
-              ownerId: tmbId
-            }).then(() => loadMyApps())
-          }
+          {...(editPerApp.permission.isOwner && {
+            onChangeOwner: (tmbId: string) =>
+              changeOwner({
+                appId: editPerApp._id,
+                ownerId: tmbId
+              }).then(() => loadMyApps())
+          })}
           refetchResource={loadMyApps}
           hasParent={Boolean(parentId)}
           resumeInheritPermission={onResumeInheritPermission}
           isInheritPermission={editPerApp.inheritPermission}
           avatar={editPerApp.avatar}
           name={editPerApp.name}
-          defaultPer={{
-            value: editPerApp.defaultPermission,
-            defaultValue: AppDefaultPermissionVal,
-            onChange: (e) => {
-              return onUpdateApp(editPerApp._id, { defaultPermission: e });
-            }
-          }}
           managePer={{
             permission: editPerApp.permission,
             onGetCollaboratorList: () => getCollaboratorList(editPerApp._id),
             permissionList: AppPermissionList,
-            onUpdateCollaborators: ({
-              tmbIds,
-              permission
-            }: {
-              tmbIds: string[];
+            onUpdateCollaborators: (props: {
+              members?: string[];
+              groups?: string[];
+              orgs?: string[];
               permission: number;
-            }) => {
-              return postUpdateAppCollaborators({
-                tmbIds,
-                permission,
+            }) =>
+              postUpdateAppCollaborators({
+                ...props,
                 appId: editPerApp._id
-              });
-            },
-            onDelOneCollaborator: (tmbId: string) =>
+              }),
+            onDelOneCollaborator: async (
+              props: RequireOnlyOne<{
+                tmbId?: string;
+                groupId?: string;
+                orgId?: string;
+              }>
+            ) =>
               deleteAppCollaborators({
-                appId: editPerApp._id,
-                tmbId
+                ...props,
+                appId: editPerApp._id
               }),
             refreshDeps: [editPerApp.inheritPermission]
           }}
@@ -452,8 +456,8 @@ const ListItem = () => {
           onClose={() => setEditHttpPlugin(undefined)}
         />
       )}
+      <MoveConfirmModal />
     </>
   );
 };
-
 export default ListItem;

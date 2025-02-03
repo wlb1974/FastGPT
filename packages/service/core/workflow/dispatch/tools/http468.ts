@@ -2,6 +2,7 @@ import type { ModuleDispatchProps } from '@fastgpt/global/core/workflow/runtime/
 import {
   NodeInputKeyEnum,
   NodeOutputKeyEnum,
+  VARIABLE_NODE_ID,
   WorkflowIOValueTypeEnum
 } from '@fastgpt/global/core/workflow/constants';
 import {
@@ -14,10 +15,19 @@ import { SERVICE_LOCAL_HOST } from '../../../../common/system/tools';
 import { addLog } from '../../../../common/system/log';
 import { DispatchNodeResultType } from '@fastgpt/global/core/workflow/runtime/type';
 import { getErrText } from '@fastgpt/global/common/error/utils';
-import { textAdaptGptResponse } from '@fastgpt/global/core/workflow/runtime/utils';
-import { getSystemPluginCb } from '../../../../../plugins/register';
+import {
+  textAdaptGptResponse,
+  replaceEditorVariable,
+  formatVariableValByType,
+  getReferenceVariableValue
+} from '@fastgpt/global/core/workflow/runtime/utils';
 import { ContentTypes } from '@fastgpt/global/core/workflow/constants';
-import { replaceEditorVariable } from '@fastgpt/global/core/workflow/utils';
+import { uploadFileFromBase64Img } from '../../../../common/file/gridfs/controller';
+import { ReadFileBaseUrl } from '@fastgpt/global/common/file/constants';
+import { createFileToken } from '../../../../support/permission/controller';
+import { JSONPath } from 'jsonpath-plus';
+import type { SystemPluginSpecialResponse } from '../../../../../plugins/type';
+import json5 from 'json5';
 
 type PropsArrType = {
   key: string;
@@ -55,7 +65,7 @@ const contentTypeMap = {
 
 export const dispatchHttp468Request = async (props: HttpRequestProps): Promise<HttpResponse> => {
   let {
-    runningAppInfo: { id: appId },
+    runningAppInfo: { id: appId, teamId, tmbId },
     chatId,
     responseChatItemId,
     variables,
@@ -90,26 +100,89 @@ export const dispatchHttp468Request = async (props: HttpRequestProps): Promise<H
   const concatVariables = {
     ...variables,
     ...body,
-    // ...dynamicInput,
     ...systemVariables
   };
-  const allVariables = {
+  const allVariables: Record<string, any> = {
     [NodeInputKeyEnum.addInputParam]: concatVariables,
     ...concatVariables
   };
-  httpReqUrl = replaceVariable(httpReqUrl, allVariables);
 
+  // General data for variable substitution（Exclude: json body)
   const replaceStringVariables = (text: string) => {
-    return replaceVariable(
-      replaceEditorVariable({
-        text,
-        nodes: runtimeNodes,
-        variables: allVariables,
-        runningNode: node
-      }),
-      allVariables
-    );
+    return replaceEditorVariable({
+      text,
+      nodes: runtimeNodes,
+      variables: allVariables
+    });
   };
+  /* Replace the JSON string to reduce parsing errors
+    1. Replace undefined values with null
+    2. Replace newline strings
+  */
+  const replaceJsonBodyString = (text: string) => {
+    const valToStr = (val: any) => {
+      if (val === undefined) return 'null';
+      if (val === null) return 'null';
+
+      if (typeof val === 'object') return JSON.stringify(val);
+
+      if (typeof val === 'string') {
+        try {
+          const parsed = JSON.parse(val);
+          if (typeof parsed === 'object') {
+            return JSON.stringify(parsed);
+          }
+          return val;
+        } catch (error) {
+          const str = JSON.stringify(val);
+          return str.startsWith('"') && str.endsWith('"') ? str.slice(1, -1) : str;
+        }
+      }
+
+      return String(val);
+    };
+
+    // 1. Replace {{key.key}} variables
+    const regex1 = /\{\{\$([^.]+)\.([^$]+)\$\}\}/g;
+    const matches1 = [...text.matchAll(regex1)];
+    matches1.forEach((match) => {
+      const nodeId = match[1];
+      const id = match[2];
+
+      const variableVal = (() => {
+        if (nodeId === VARIABLE_NODE_ID) {
+          return variables[id];
+        }
+        // Find upstream node input/output
+        const node = runtimeNodes.find((node) => node.nodeId === nodeId);
+        if (!node) return;
+
+        const output = node.outputs.find((output) => output.id === id);
+        if (output) return formatVariableValByType(output.value, output.valueType);
+
+        const input = node.inputs.find((input) => input.key === id);
+        if (input)
+          return getReferenceVariableValue({ value: input.value, nodes: runtimeNodes, variables });
+      })();
+
+      const formatVal = valToStr(variableVal);
+
+      const regex = new RegExp(`\\{\\{\\$(${nodeId}\\.${id})\\$\\}\\}`, 'g');
+      text = text.replace(regex, () => formatVal);
+    });
+
+    // 2. Replace {{key}} variables
+    const regex2 = /{{([^}]+)}}/g;
+    const matches2 = text.match(regex2) || [];
+    const uniqueKeys2 = [...new Set(matches2.map((match) => match.slice(2, -2)))];
+    for (const key of uniqueKeys2) {
+      text = text.replace(new RegExp(`{{(${key})}}`, 'g'), () => valToStr(allVariables[key]));
+    }
+
+    return text.replace(/(".*?")\s*:\s*undefined\b/g, '$1: null');
+  };
+
+  httpReqUrl = replaceStringVariables(httpReqUrl);
 
   // parse header
   const headers = await (() => {
@@ -170,25 +243,45 @@ export const dispatchHttp468Request = async (props: HttpRequestProps): Promise<H
       }
       if (!httpJsonBody) return {};
       if (httpContentType === ContentTypes.json) {
-        httpJsonBody = replaceVariable(httpJsonBody, allVariables);
-        // Json body, parse and return
-        const jsonParse = JSON.parse(httpJsonBody);
-        const removeSignJson = removeUndefinedSign(jsonParse);
-        return removeSignJson;
+        httpJsonBody = replaceJsonBodyString(httpJsonBody);
+        console.log(httpJsonBody);
+        return json5.parse(httpJsonBody);
       }
+
+      // Raw text, xml
       httpJsonBody = replaceStringVariables(httpJsonBody);
       return httpJsonBody.replaceAll(UNDEFINED_SIGN, 'null');
     } catch (error) {
-      console.log(error);
       return Promise.reject(`Invalid JSON body: ${httpJsonBody}`);
     }
   })();
 
+  // Just show
+  const formattedRequestBody: Record<string, any> = (() => {
+    if (requestBody instanceof FormData || requestBody instanceof URLSearchParams) {
+      return Object.fromEntries(requestBody);
+    } else if (typeof requestBody === 'string') {
+      try {
+        return json5.parse(requestBody);
+      } catch {
+        return { content: requestBody };
+      }
+    } else if (typeof requestBody === 'object' && requestBody !== null) {
+      return requestBody;
+    }
+    return {};
+  })();
+
   try {
     const { formatResponse, rawResponse } = await (async () => {
-      const systemPluginCb = await getSystemPluginCb();
+      const systemPluginCb = global.systemPluginCb;
       if (systemPluginCb[httpReqUrl]) {
-        const pluginResult = await systemPluginCb[httpReqUrl](requestBody);
+        const pluginResult = await replaceSystemPluginResponse({
+          response: await systemPluginCb[httpReqUrl](requestBody),
+          teamId,
+          tmbId
+        });
+
         return {
           formatResponse: pluginResult,
           rawResponse: pluginResult
@@ -206,11 +299,34 @@ export const dispatchHttp468Request = async (props: HttpRequestProps): Promise<H
 
     // format output value type
     const results: Record<string, any> = {};
-    for (const key in formatResponse) {
-      const output = node.outputs.find((item) => item.key === key);
-      if (!output) continue;
-      results[key] = valueTypeFormat(formatResponse[key], output.valueType);
-    }
+    node.outputs
+      .filter(
+        (item) =>
+          item.id !== NodeOutputKeyEnum.error &&
+          item.id !== NodeOutputKeyEnum.httpRawResponse &&
+          item.id !== NodeOutputKeyEnum.addOutputParam
+      )
+      .forEach((item) => {
+        const key = item.key.startsWith('$') ? item.key : `$.${item.key}`;
+        results[item.key] = (() => {
+          const result = JSONPath({ path: key, json: formatResponse });
+
+          // 如果结果为空,返回 undefined
+          if (!result || result.length === 0) {
+            return undefined;
+          }
+
+          // 以下情况返回数组:
+          // 1. 使用通配符 *
+          // 2. 使用数组切片 [start:end]
+          // 3. 使用过滤表达式 [?(...)]
+          // 4. 使用递归下降 ..
+          // 5. 使用多个结果运算符 ,
+          const needArrayResult = /[*]|[\[][:?]|\.\.|\,/.test(key);
+
+          return needArrayResult ? result : result[0];
+        })();
+      });
 
     if (typeof formatResponse[NodeOutputKeyEnum.answerText] === 'string') {
       workflowStreamResponse?.({
@@ -222,17 +338,17 @@ export const dispatchHttp468Request = async (props: HttpRequestProps): Promise<H
     }
 
     return {
+      ...results,
       [DispatchNodeResponseKeyEnum.nodeResponse]: {
         totalPoints: 0,
         params: Object.keys(params).length > 0 ? params : undefined,
-        body: Object.keys(requestBody).length > 0 ? requestBody : undefined,
+        body: Object.keys(formattedRequestBody).length > 0 ? formattedRequestBody : undefined,
         headers: Object.keys(headers).length > 0 ? headers : undefined,
         httpResult: rawResponse
       },
       [DispatchNodeResponseKeyEnum.toolResponses]:
         Object.keys(results).length > 0 ? results : rawResponse,
-      [NodeOutputKeyEnum.httpRawResponse]: rawResponse,
-      ...results
+      [NodeOutputKeyEnum.httpRawResponse]: rawResponse
     };
   } catch (error) {
     addLog.error('Http request error', error);
@@ -241,7 +357,7 @@ export const dispatchHttp468Request = async (props: HttpRequestProps): Promise<H
       [NodeOutputKeyEnum.error]: formatHttpError(error),
       [DispatchNodeResponseKeyEnum.nodeResponse]: {
         params: Object.keys(params).length > 0 ? params : undefined,
-        body: Object.keys(requestBody).length > 0 ? requestBody : undefined,
+        body: Object.keys(formattedRequestBody).length > 0 ? formattedRequestBody : undefined,
         headers: Object.keys(headers).length > 0 ? headers : undefined,
         httpResult: { error: formatHttpError(error) }
       },
@@ -277,115 +393,78 @@ async function fetchData({
     data: ['POST', 'PUT', 'PATCH'].includes(method) ? body : undefined
   });
 
-  /*
-    parse the json:
-    {
-      user: {
-        name: 'xxx',
-        age: 12
-      },
-      list: [
-        {
-          name: 'xxx',
-          age: 50
-        },
-        [{ test: 22 }]
-      ],
-      psw: 'xxx'
-    }
-
-    result: {
-      'user': { name: 'xxx', age: 12 },
-      'user.name': 'xxx',
-      'user.age': 12,
-      'list': [ { name: 'xxx', age: 50 }, [ [Object] ] ],
-      'list[0]': { name: 'xxx', age: 50 },
-      'list[0].name': 'xxx',
-      'list[0].age': 50,
-      'list[1]': [ { test: 22 } ],
-      'list[1][0]': { test: 22 },
-      'list[1][0].test': 22,
-      'psw': 'xxx'
-    }
-  */
-  const parseJson = (obj: Record<string, any>, prefix = '') => {
-    let result: Record<string, any> = {};
-
-    if (Array.isArray(obj)) {
-      for (let i = 0; i < obj.length; i++) {
-        result[`${prefix}[${i}]`] = obj[i];
-
-        if (Array.isArray(obj[i])) {
-          result = {
-            ...result,
-            ...parseJson(obj[i], `${prefix}[${i}]`)
-          };
-        } else if (typeof obj[i] === 'object') {
-          result = {
-            ...result,
-            ...parseJson(obj[i], `${prefix}[${i}].`)
-          };
-        }
-      }
-    } else if (typeof obj == 'object') {
-      for (const key in obj) {
-        result[`${prefix}${key}`] = obj[key];
-
-        if (Array.isArray(obj[key])) {
-          result = {
-            ...result,
-            ...parseJson(obj[key], `${prefix}${key}`)
-          };
-        } else if (typeof obj[key] === 'object') {
-          result = {
-            ...result,
-            ...parseJson(obj[key], `${prefix}${key}.`)
-          };
-        }
-      }
-    }
-
-    return result;
-  };
-
   return {
-    formatResponse:
-      typeof response === 'object' && !Array.isArray(response) ? parseJson(response) : {},
+    formatResponse: typeof response === 'object' ? response : {},
     rawResponse: response
   };
 }
 
-function replaceVariable(text: string, obj: Record<string, any>) {
-  for (const [key, value] of Object.entries(obj)) {
-    if (value === undefined) {
-      text = text.replace(new RegExp(`{{(${key})}}`, 'g'), UNDEFINED_SIGN);
-    } else {
-      const replacement = JSON.stringify(value);
-      const unquotedReplacement =
-        replacement.startsWith('"') && replacement.endsWith('"')
-          ? replacement.slice(1, -1)
-          : replacement;
-      text = text.replace(new RegExp(`{{(${key})}}`, 'g'), () => unquotedReplacement);
+// function replaceVariable(text: string, obj: Record<string, any>) {
+//   for (const [key, value] of Object.entries(obj)) {
+//     if (value === undefined) {
+//       text = text.replace(new RegExp(`{{(${key})}}`, 'g'), UNDEFINED_SIGN);
+//     } else {
+//       const replacement = JSON.stringify(value);
+//       const unquotedReplacement =
+//         replacement.startsWith('"') && replacement.endsWith('"')
+//           ? replacement.slice(1, -1)
+//           : replacement;
+//       text = text.replace(new RegExp(`{{(${key})}}`, 'g'), () => unquotedReplacement);
+//     }
+//   }
+//   return text || '';
+// }
+// function removeUndefinedSign(obj: Record<string, any>) {
+//   for (const key in obj) {
+//     if (obj[key] === UNDEFINED_SIGN) {
+//       obj[key] = undefined;
+//     } else if (Array.isArray(obj[key])) {
+//       obj[key] = obj[key].map((item: any) => {
+//         if (item === UNDEFINED_SIGN) {
+//           return undefined;
+//         } else if (typeof item === 'object') {
+//           removeUndefinedSign(item);
+//         }
+//         return item;
+//       });
+//     } else if (typeof obj[key] === 'object') {
+//       removeUndefinedSign(obj[key]);
+//     }
+//   }
+//   return obj;
+// }
+
+// Replace some special response from system plugin
+async function replaceSystemPluginResponse({
+  response,
+  teamId,
+  tmbId
+}: {
+  response: Record<string, any>;
+  teamId: string;
+  tmbId: string;
+}) {
+  for await (const key of Object.keys(response)) {
+    if (typeof response[key] === 'object' && response[key].type === 'SYSTEM_PLUGIN_BASE64') {
+      const fileObj = response[key] as SystemPluginSpecialResponse;
+      const filename = `${tmbId}-${Date.now()}.${fileObj.extension}`;
+      try {
+        const fileId = await uploadFileFromBase64Img({
+          teamId,
+          tmbId,
+          bucketName: 'chat',
+          base64: fileObj.value,
+          filename,
+          metadata: {}
+        });
+        response[key] = `${ReadFileBaseUrl}/${filename}?token=${await createFileToken({
+          bucketName: 'chat',
+          teamId,
+          uid: tmbId,
+          fileId
+        })}`;
+      } catch (error) {}
     }
   }
-  return text || '';
-}
-function removeUndefinedSign(obj: Record<string, any>) {
-  for (const key in obj) {
-    if (obj[key] === UNDEFINED_SIGN) {
-      obj[key] = undefined;
-    } else if (Array.isArray(obj[key])) {
-      obj[key] = obj[key].map((item: any) => {
-        if (item === UNDEFINED_SIGN) {
-          return undefined;
-        } else if (typeof item === 'object') {
-          removeUndefinedSign(item);
-        }
-        return item;
-      });
-    } else if (typeof obj[key] === 'object') {
-      removeUndefinedSign(obj[key]);
-    }
-  }
-  return obj;
+  return response;
 }

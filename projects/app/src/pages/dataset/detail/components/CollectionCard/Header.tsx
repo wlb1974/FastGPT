@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React from 'react';
 import {
   Box,
   Flex,
@@ -15,7 +15,6 @@ import {
   putDatasetCollectionById
 } from '@/web/core/dataset/api';
 import { useQuery } from '@tanstack/react-query';
-import { debounce } from 'lodash';
 import { useTranslation } from 'next-i18next';
 import MyIcon from '@fastgpt/web/components/common/Icon';
 import MyInput from '@/components/MyInput';
@@ -56,7 +55,6 @@ const Header = ({}: {}) => {
   const { parentId = '' } = router.query as { parentId: string };
   const { isPc } = useSystem();
 
-  const lastSearch = useRef('');
   const { searchText, setSearchText, total, getData, pageNum, onOpenWebsiteModal } =
     useContextSelector(CollectionPageContext, (v) => v);
 
@@ -386,6 +384,36 @@ const Header = ({}: {}) => {
                 }
               ]}
             />
+          )}
+          {/* apiDataset */}
+          {(datasetDetail?.type === DatasetTypeEnum.apiDataset ||
+            datasetDetail?.type === DatasetTypeEnum.feishu ||
+            datasetDetail?.type === DatasetTypeEnum.yuque) && (
+            <Flex
+              px={3.5}
+              py={2}
+              borderRadius={'sm'}
+              cursor={'pointer'}
+              bg={'primary.500'}
+              overflow={'hidden'}
+              color={'white'}
+              onClick={() =>
+                router.replace({
+                  query: {
+                    ...router.query,
+                    currentTab: TabEnum.import,
+                    source: ImportDataSourceEnum.apiDataset
+                  }
+                })
+              }
+            >
+              <Flex h={'20px'} alignItems={'center'}>
+                <MyIcon name={'common/folderImport'} mr={2} w={'18px'} h={'18px'} color={'white'} />
+              </Flex>
+              <Box h={'20px'} fontSize={'sm'} fontWeight={'500'}>
+                {t('dataset:add_file')}
+              </Box>
+            </Flex>
           )}
         </Box>
       )}

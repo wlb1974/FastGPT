@@ -18,7 +18,10 @@ const MetaDataCard = ({ datasetId }: { datasetId: string }) => {
     collectionId: string;
     datasetId: string;
   };
-  const readSource = getCollectionSourceAndOpen(collectionId);
+
+  const readSource = getCollectionSourceAndOpen({
+    collectionId
+  });
   const { data: collection, loading: isLoading } = useRequest2(
     () => getDatasetCollectionById(collectionId),
     {
@@ -35,8 +38,7 @@ const MetaDataCard = ({ datasetId }: { datasetId: string }) => {
   const metadataList = useMemo<{ label?: string; value?: any }[]>(() => {
     if (!collection) return [];
 
-    const webSelector =
-      collection?.datasetId?.websiteConfig?.selector || collection?.metadata?.webPageSelector;
+    const webSelector = collection?.metadata?.webPageSelector;
 
     return [
       {
@@ -64,7 +66,7 @@ const MetaDataCard = ({ datasetId }: { datasetId: string }) => {
         value: collection.rawTextLength ?? '-'
       },
       {
-        label: t('common:core.dataset.collection.metadata.Training Type'),
+        label: t('dataset:collection.Training type'),
         value: t(TrainingTypeMap[collection.trainingType]?.label as any)
       },
       {

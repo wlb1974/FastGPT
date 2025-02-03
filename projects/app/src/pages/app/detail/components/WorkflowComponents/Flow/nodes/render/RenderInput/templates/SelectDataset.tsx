@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { RenderInputProps } from '../type';
-import { Box, Button, Flex, Grid, useDisclosure, useTheme } from '@chakra-ui/react';
+import { Box, Button, Flex, Grid, Switch, useDisclosure, useTheme } from '@chakra-ui/react';
 import { useDatasetStore } from '@/web/core/dataset/store/dataset';
 import { SelectedDatasetType } from '@fastgpt/global/core/workflow/api';
 import Avatar from '@fastgpt/web/components/common/Avatar';
@@ -12,12 +12,17 @@ import dynamic from 'next/dynamic';
 import MyIcon from '@fastgpt/web/components/common/Icon';
 import { useContextSelector } from 'use-context-selector';
 import { WorkflowContext } from '@/pages/app/detail/components/WorkflowComponents/context';
+import QuestionTip from '@fastgpt/web/components/common/MyTooltip/QuestionTip';
+import { NodeInputKeyEnum } from '@fastgpt/global/core/workflow/constants';
 
 const DatasetSelectModal = dynamic(() => import('@/components/core/app/DatasetSelectModal'));
 
-const SelectDatasetRender = ({ inputs = [], item, nodeId }: RenderInputProps) => {
+export const SelectDatasetRender = React.memo(function SelectDatasetRender({
+  inputs = [],
+  item,
+  nodeId
+}: RenderInputProps) {
   const { t } = useTranslation();
-  const theme = useTheme();
   const onChangeNode = useContextSelector(WorkflowContext, (v) => v.onChangeNode);
 
   const [data, setData] = useState({
@@ -69,7 +74,7 @@ const SelectDatasetRender = ({ inputs = [], item, nodeId }: RenderInputProps) =>
           w={'100%'}
         >
           <Button
-            h={'36px'}
+            h={10}
             leftIcon={<MyIcon name={'common/selectLight'} w={'14px'} />}
             onClick={onOpenDatasetSelect}
           >
@@ -79,19 +84,21 @@ const SelectDatasetRender = ({ inputs = [], item, nodeId }: RenderInputProps) =>
             <Flex
               key={item._id}
               alignItems={'center'}
-              h={'36px'}
-              border={theme.borders.base}
+              h={10}
+              boxShadow={'sm'}
+              bg={'white'}
+              border={'base'}
               px={2}
               borderRadius={'md'}
             >
-              <Avatar src={item.avatar} w={'24px'}></Avatar>
+              <Avatar src={item.avatar} w={'18px'} borderRadius={'xs'} />
               <Box
-                ml={3}
+                ml={1.5}
                 flex={'1 0 0'}
                 w={0}
                 className="textEllipsis"
                 fontWeight={'bold'}
-                fontSize={['md', 'lg']}
+                fontSize={['sm', 'sm']}
               >
                 {item.name}
               </Box>
@@ -127,11 +134,47 @@ const SelectDatasetRender = ({ inputs = [], item, nodeId }: RenderInputProps) =>
     onOpenDatasetSelect,
     selectedDatasets,
     selectedDatasetsValue,
-    t,
-    theme.borders.base
+    t
   ]);
 
   return Render;
-};
+});
 
-export default React.memo(SelectDatasetRender);
+export const SwitchAuthTmb = React.memo(function SwitchAuthTmb({
+  inputs = [],
+  item,
+  nodeId
+}: RenderInputProps) {
+  const { t } = useTranslation();
+  const onChangeNode = useContextSelector(WorkflowContext, (v) => v.onChangeNode);
+
+  const authTmbIdInput = useMemo(
+    () => inputs.find((v) => v.key === NodeInputKeyEnum.authTmbId),
+    [inputs]
+  );
+
+  return authTmbIdInput ? (
+    <Flex alignItems={'center'}>
+      <Box fontSize={'sm'}>{t('workflow:auth_tmb_id')}</Box>
+      <QuestionTip label={t('workflow:auth_tmb_id_tip')} />
+      <Switch
+        ml={1}
+        size={'sm'}
+        isChecked={!!authTmbIdInput.value}
+        onChange={(e) => {
+          onChangeNode({
+            nodeId,
+            key: NodeInputKeyEnum.authTmbId,
+            type: 'updateInput',
+            value: {
+              ...authTmbIdInput,
+              value: e.target.checked
+            }
+          });
+        }}
+      />
+    </Flex>
+  ) : null;
+});
+
+export default SelectDatasetRender;

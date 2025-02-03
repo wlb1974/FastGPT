@@ -34,7 +34,7 @@ export const pushDataListToTrainingQueueByCollectionId = async ({
   session?: ClientSession;
 } & PushDatasetDataProps) => {
   const {
-    datasetId: { _id: datasetId, agentModel, vectorModel }
+    dataset: { _id: datasetId, agentModel, vectorModel }
   } = await getCollectionWithDataset(collectionId);
   return pushDataListToTrainingQueue({
     ...props,
@@ -77,7 +77,7 @@ export async function pushDataListToTrainingQueue({
 
     if (trainingMode === TrainingModeEnum.chunk) {
       return {
-        maxToken: vectorModelData.maxToken * 1.3,
+        maxToken: vectorModelData.maxToken * 1.5,
         model: vectorModelData.model,
         weight: vectorModelData.weight
       };
@@ -125,10 +125,7 @@ export async function pushDataListToTrainingQueue({
 
     const text = item.q + item.a;
 
-    // count q token
-    const token = item.q.length;
-
-    if (token > maxToken) {
+    if (text.length > maxToken) {
       filterResult.overToken.push(item);
       return;
     }
@@ -168,7 +165,8 @@ export async function pushDataListToTrainingQueue({
           a: item.a,
           chunkIndex: item.chunkIndex ?? 0,
           weight: weight ?? 0,
-          indexes: item.indexes
+          indexes: item.indexes,
+          retryCount: 5
         })),
         {
           session,

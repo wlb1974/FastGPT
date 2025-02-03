@@ -43,12 +43,12 @@ export const useSendCode = ({ type }: { type: `${UserAuthTypeEnum}` }) => {
   const sendCodeText = useMemo(() => {
     if (codeSending) return t('common:support.user.auth.Sending Code');
     if (codeCountDown >= 10) {
-      return `${codeCountDown}${t('user:password.get_code_again')}`;
+      return `${codeCountDown}${t('common:support.user.auth.get_code_again')}`;
     }
     if (codeCountDown > 0) {
-      return `0${codeCountDown}${t('user:password.get_code_again')}`;
+      return `0${codeCountDown}${t('common:support.user.auth.get_code_again')}`;
     }
-    return t('user:password.get_code');
+    return t('common:support.user.auth.get_code');
   }, [codeCountDown, codeSending, t]);
 
   const {
@@ -64,7 +64,8 @@ export const useSendCode = ({ type }: { type: `${UserAuthTypeEnum}` }) => {
           position={'absolute'}
           right={3}
           zIndex={1}
-          fontSize={'sm'}
+          fontSize={'mini'}
+          fontWeight={'medium'}
           {...styles}
           {...(codeCountDown > 0
             ? {

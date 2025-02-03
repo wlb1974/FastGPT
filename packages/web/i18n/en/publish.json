@@ -1,6 +1,7 @@
 {
   "app_key_tips": "These keys are already linked to the current application. Check the documentation for detailed usage.",
   "basic_info": "Basic Info",
+  "config": "Visibility configuration",
   "copy_link_hint": "Copy the link below to the specified location",
   "create_api_key": "Create New Key",
   "create_link": "Create Link",
@@ -19,10 +20,12 @@
   "official_account.edit_modal_title": "Edit WeChat Official Account Integration",
   "official_account.name": "WeChat Official Account Integration",
   "official_account.params": "WeChat Official Account Parameters",
+  "private_config": "Visibility configuration",
   "publish_name": "Name",
   "qpm_is_empty": "QPM cannot be empty",
   "qpm_tips": "Maximum number of queries per minute per IP",
   "request_address": "Request URL",
+  "show_node": "real-time running status",
   "show_share_link_modal_title": "Get Started",
   "token_auth": "Token Authentication",
   "token_auth_tips": "Token authentication server URL. If provided, a request will be sent to the specified server for authentication before each conversation.",
@@ -32,5 +35,11 @@
   "wecom.bot_desc": "Connect to WeCom Bot directly via API",
   "wecom.create_modal_title": "Create WeCom Bot",
   "wecom.edit_modal_title": "Edit WeCom Bot",
-  "wecom.title": "Publish to WeCom Bot"
+  "wecom.title": "Publish to WeCom Bot",
+  "dingtalk.bot": "DingTalk Bot",
+  "dingtalk.bot_desc": "Connect to DingTalk Bot directly via API",
+  "dingtalk.create_modal_title": "Create DingTalk Bot",
+  "dingtalk.edit_modal_title": "Edit DingTalk Bot",
+  "dingtalk.title": "Publish to DingTalk Bot",
+  "dingtalk.api": "DingTalk API"
 }

@@ -84,18 +84,34 @@ export const useSpeech = (props?: OutLinkChatAuthProps & { appId?: string }) => 
       mediaRecorder.current.onstop = async () => {
         if (!cancelWhisperSignal.current) {
           const formData = new FormData();
-          let options = {};
-          if (MediaRecorder.isTypeSupported('audio/webm')) {
-            options = { type: 'audio/webm' };
-          } else if (MediaRecorder.isTypeSupported('video/mp3')) {
-            options = { type: 'video/mp3' };
-          } else {
-            console.error('no suitable mimetype found for this device');
-          }
+          const { options, filename } = (() => {
+            if (MediaRecorder.isTypeSupported('video/webm; codecs=vp9')) {
+              return {
+                options: { mimeType: 'video/webm; codecs=vp9' },
+                filename: 'recording.mp3'
+              };
+            }
+            if (MediaRecorder.isTypeSupported('video/webm')) {
+              return {
+                options: { type: 'video/webm' },
+                filename: 'recording.mp3'
+              };
+            }
+            if (MediaRecorder.isTypeSupported('video/mp4')) {
+              return {
+                options: { mimeType: 'video/mp4', videoBitsPerSecond: 100000 },
+                filename: 'recording.mp4'
+              };
+            }
+            return {
+              options: { type: 'video/webm' },
+              filename: 'recording.mp3'
+            };
+          })();
+
           const blob = new Blob(chunks, options);
           const duration = Math.round((Date.now() - startTimestamp.current) / 1000);
-
-          formData.append('file', blob, 'recording.mp3');
+          formData.append('file', blob, filename);
           formData.append(
             'data',
             JSON.stringify({
